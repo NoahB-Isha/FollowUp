@@ -76,6 +76,45 @@ h2 { font-size: 16px; margin: 26px 0 10px; }
 .tile .value.ok { color: var(--good-text); }
 .tile .label { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 
+/* Dormitory health cards */
+.lodgecards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+a.lodgecard {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 15px;
+  color: var(--ink);
+}
+a.lodgecard:hover { border-color: var(--accent); text-decoration: none; }
+.lc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lc-name { font-weight: 650; font-size: 16px; }
+.lc-label { color: var(--muted); font-size: 12px; margin-top: 1px; }
+.lc-nums { font-size: 13px; margin: 7px 0 3px; }
+.lc-nums b.bad { color: var(--critical); }
+.lc-floors { color: var(--ink-2); font-size: 12px; }
+
+/* Status pills — color always paired with a glyph + label */
+.pill {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.pill.good { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, var(--surface)); }
+.pill.warn { color: var(--ink);       background: color-mix(in srgb, var(--warning) 22%, var(--surface)); }
+.pill.crit { color: var(--critical);  background: color-mix(in srgb, var(--critical) 13%, var(--surface)); }
+
+.status-ok   { color: var(--good-text); font-weight: 600; }
+.status-miss { color: var(--critical); font-weight: 600; }
+.age.old { color: var(--critical); }
+.muted { color: var(--muted); }
+.crumb { margin: 2px 0 10px; }
+.h-sub { color: var(--ink-2); font-weight: 400; font-size: 13px; }
+
 /* Cards & tables */
 .card {
   background: var(--surface);

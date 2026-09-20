@@ -10,6 +10,7 @@ import { ensureOriginal, ensureThumb } from './photos.js';
 import {
   stats, coverage, openIssues, latestWalkDates, recentWalkthroughs,
   walkthroughDetail, setIssueStatus, assignIssue,
+  lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs,
 } from './queries.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
@@ -89,12 +90,29 @@ server.get('/styles.css', (req, res) => {
 server.get('/', cachedGet((req, res) => {
   const body = pages.overviewBody({
     s: stats(),
-    cov: coverage(),
-    issues: openIssues({}),
-    latestByUnit: latestWalkDates(),
-    recent: recentWalkthroughs(8),
+    health: lodgeHealth(),
+    weekly: weeklyWalkStatus(),
+    longest: openIssues({}).slice(0, 8),
   });
   res.send(page({ title: 'Overview', active: '/', body, flash: req.query.flash }));
+}));
+
+server.get('/lodges/:lodge', cachedGet((req, res) => {
+  const health = lodgeHealth().find((h) => h.lodge === req.params.lodge);
+  if (!health) return res.status(404).send(page({ title: 'Not found', body: '<p>Unknown lodge.</p>' }));
+  const issues = openIssues({ lodge: health.lodge })
+    .sort((a, b) => a.area.localeCompare(b.area) || (a.severity === 'high' ? -1 : 1));
+  res.send(page({
+    title: health.lodge, active: '/',
+    body: pages.lodgeBody({
+      health,
+      issues,
+      latestByUnit: latestWalkDates(),
+      floorWalks: lodgeFloorWalks(health.lodge),
+      walks: lodgeWalkthroughs(health.lodge),
+    }),
+    flash: req.query.flash,
+  }));
 }));
 
 server.get('/issues', cachedGet((req, res) => {
@@ -115,7 +133,7 @@ server.get('/issues', cachedGet((req, res) => {
 server.get('/walkthroughs', cachedGet((req, res) => {
   res.send(page({
     title: 'Walkthroughs', active: '/walkthroughs',
-    body: pages.walkthroughsBody({ recent: recentWalkthroughs(200) }),
+    body: pages.walkthroughsBody({ cov: coverage(), recent: recentWalkthroughs(200) }),
   }));
 }));
 

@@ -1,5 +1,5 @@
 import { q, bumpDataVersion } from './db.js';
-import { app, coverageUnits } from './config.js';
+import { app, coverageUnits, lodges as lodgesConfig } from './config.js';
 import { today, weekStart, addDays, daysBetween } from './util.js';
 
 export function stats() {
@@ -89,6 +89,64 @@ export function walkthroughDetail(id) {
      WHERE s.walkthrough_id = ? ORDER BY i.area`
   ).all(id);
   return { walk, areas, photos, sightings };
+}
+
+/**
+ * Per-lodge health rollup for the Dormitory Health cards.
+ * critical = open high-severity issues; warning = open issues or stale/never
+ * coverage on any floor; good = clean and recently walked.
+ */
+export function lodgeHealth() {
+  const openRows = q(
+    `SELECT lodge, COUNT(*) n, SUM(severity = 'high') high FROM issues WHERE status = 'open' GROUP BY lodge`
+  ).all();
+  const openMap = new Map(openRows.map((r) => [r.lodge, r]));
+  const last = latestWalkDates();
+
+  return lodgesConfig.lodges.map((lodge) => {
+    const floors = Object.keys(lodgesConfig.floors).map((floor) => {
+      const d = last.get(`${lodge}|${floor}`) ?? null;
+      return { floor, lastWalked: d, staleDays: d ? daysBetween(d, today()) : null };
+    });
+    const open = openMap.get(lodge)?.n ?? 0;
+    const high = openMap.get(lodge)?.high ?? 0;
+    const stale = floors.some((f) => f.staleDays == null || f.staleDays > app.staleAfterDays);
+    const status = high > 0 ? 'critical' : open > 0 || stale ? 'warning' : 'good';
+    return { lodge, label: lodgesConfig.labels?.[lodge] ?? '', open, high, floors, stale, status };
+  });
+}
+
+/** Walkthroughs completed this ISO week, grouped by coordinator name. */
+export function weeklyWalkStatus() {
+  const ws = weekStart(today());
+  const rows = q(
+    `SELECT id, coordinator, lodge, floor, walk_date FROM walkthroughs WHERE walk_date >= ? ORDER BY walk_date`
+  ).all(ws);
+  const byCoord = new Map();
+  for (const r of rows) {
+    if (!byCoord.has(r.coordinator)) byCoord.set(r.coordinator, []);
+    byCoord.get(r.coordinator).push(r);
+  }
+  return { weekStart: ws, byCoord };
+}
+
+/** Latest walkthrough (date + coordinator) per floor of one lodge. */
+export function lodgeFloorWalks(lodge) {
+  const rows = q(
+    `SELECT floor, walk_date, coordinator FROM walkthroughs WHERE lodge = ? ORDER BY walk_date DESC`
+  ).all(lodge);
+  const perFloor = new Map();
+  for (const r of rows) if (!perFloor.has(r.floor)) perFloor.set(r.floor, r);
+  return perFloor;
+}
+
+export function lodgeWalkthroughs(lodge, limit = 12) {
+  return q(
+    `SELECT w.id, w.submitted_at, w.walk_date, w.coordinator, w.lodge, w.floor,
+            (SELECT COUNT(*) FROM photos p WHERE p.walkthrough_id = w.id) photo_count,
+            (SELECT COUNT(*) FROM issue_sightings s WHERE s.walkthrough_id = w.id) issue_count
+     FROM walkthroughs w WHERE w.lodge = ? ORDER BY walk_date DESC, submitted_at DESC LIMIT ?`
+  ).all(lodge, limit);
 }
 
 export function setIssueStatus(id, status, by) {

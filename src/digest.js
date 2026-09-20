@@ -29,15 +29,18 @@ function issueRow(i) {
   </tr>`;
 }
 
-function lodgeSection(lodge, issues) {
-  const byFloor = {};
-  for (const i of issues) (byFloor[`${i.floor} floor`] ??= []).push(i);
-  let html = `<h3 style="margin:20px 0 6px;font-size:16px;">${esc(lodge)} — ${issues.length} open</h3>`;
-  for (const [floor, list] of Object.entries(byFloor)) {
-    html += `<p style="margin:8px 0 4px;color:#52514e;font-size:13px;">${esc(floor)}</p>
-      <table style="border-collapse:collapse;width:100%;font-size:14px;">${list.map(issueRow).join('')}</table>`;
-  }
-  return html;
+function issueGroup(label, list, color) {
+  if (!list.length) return '';
+  return `<p style="margin:10px 0 4px;font-size:13px;font-weight:600;color:${color};">${esc(label)} (${list.length})</p>
+    <table style="border-collapse:collapse;width:100%;font-size:14px;">${list.map(issueRow).join('')}</table>`;
+}
+
+function lodgeSection(lodge, issues, newSince) {
+  const fresh = issues.filter((i) => i.first_seen >= newSince);
+  const ongoing = issues.filter((i) => i.first_seen < newSince);
+  return `<h3 style="margin:22px 0 2px;font-size:16px;">${esc(lodge)} — ${issues.length} open</h3>
+    ${issueGroup('New this week', fresh, '#0b0b0b')}
+    ${issueGroup('Ongoing', ongoing, '#52514e')}`;
 }
 
 export function buildDigest(coordinator) {
@@ -68,7 +71,8 @@ export function buildDigest(coordinator) {
   for (const i of issues) (byLodge[i.lodge] ??= []).push(i);
 
   const high = issues.filter((i) => i.severity === 'high');
-  const aging = issues.filter((i) => issueAge(i) >= 14);
+  const fresh = issues.filter((i) => i.first_seen >= wkStart);
+  const ongoing = issues.filter((i) => i.first_seen < wkStart);
 
   const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#0b0b0b;background:#fcfcfb;margin:0;padding:24px;">
   <div style="max-width:680px;margin:0 auto;">
@@ -79,7 +83,8 @@ export function buildDigest(coordinator) {
       <tr>
         <td style="padding:10px 18px 10px 0;"><div style="font-size:26px;font-weight:600;">${issues.length}</div><div style="font-size:12px;color:#52514e;">open issues${scope ? ' (your lodges)' : ''}</div></td>
         <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;color:${high.length ? '#d03b3b' : '#0b0b0b'};">${high.length}</div><div style="font-size:12px;color:#52514e;">high priority</div></td>
-        <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${aging.length}</div><div style="font-size:12px;color:#52514e;">open ≥ 2 weeks</div></td>
+        <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${fresh.length}</div><div style="font-size:12px;color:#52514e;">new this week</div></td>
+        <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${ongoing.length}</div><div style="font-size:12px;color:#52514e;">ongoing</div></td>
         ${mine.length ? `<td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${mine.length}</div><div style="font-size:12px;color:#52514e;">assigned to you</div></td>` : ''}
       </tr>
     </table>
@@ -91,21 +96,27 @@ export function buildDigest(coordinator) {
     <table style="border-collapse:collapse;width:100%;font-size:14px;">${covRows}</table>
 
     <h2 style="font-size:17px;margin:22px 0 0;">Open issues by lodge</h2>
-    ${Object.entries(byLodge).map(([lodge, list]) => lodgeSection(lodge, list)).join('') || '<p>Nothing open. 🎉</p>'}
+    ${Object.entries(byLodge).map(([lodge, list]) => lodgeSection(lodge, list, wkStart)).join('') || '<p>Nothing open. 🎉</p>'}
 
     <p style="color:#898781;font-size:12px;margin-top:26px;">Sent by FollowUp (runs on-campus). Reply to the overall coordinator with corrections.
     Mark items resolved on the dashboard so they drop off next week's list.</p>
   </div></body></html>`;
 
+  const textIssue = (i) => `    - [${i.area}] ${i.description} (${i.category}, open ${issueAge(i)}d)`;
   const textLines = [
     `FollowUp — week of ${fmtWeek(wkStart)}`,
-    `${issues.length} open issues, ${high.length} high priority, ${aging.length} open ≥ 2 weeks`,
+    `${issues.length} open issues: ${fresh.length} new this week, ${ongoing.length} ongoing, ${high.length} high priority`,
     '',
-    ...Object.entries(byLodge).flatMap(([lodge, list]) => [
-      `${lodge}:`,
-      ...list.map((i) => `  - [${i.area}] ${i.description} (${i.category}, ${issueAge(i)}d)`),
-      '',
-    ]),
+    ...Object.entries(byLodge).flatMap(([lodge, list]) => {
+      const f = list.filter((i) => i.first_seen >= wkStart);
+      const o = list.filter((i) => i.first_seen < wkStart);
+      return [
+        `${lodge}:`,
+        ...(f.length ? [`  New this week (${f.length}):`, ...f.map(textIssue)] : []),
+        ...(o.length ? [`  Ongoing (${o.length}):`, ...o.map(textIssue)] : []),
+        '',
+      ];
+    }),
   ];
 
   return { html, text: textLines.join('\n'), subject: `FollowUp digest — week of ${fmtWeek(wkStart)}` };
