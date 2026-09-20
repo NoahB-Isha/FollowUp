@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to config/coordinators.local.json (gitignored) and fill in real addresses. Keys must match the 'name' fields in coordinators.json.",
+  "emails": {
+    "Diana": "",
+    "Jacob": "",
+    "Mora": "",
+    "Navneet": "",
+    "Nikki": "",
+    "Rob": "",
+    "Sjel": "",
+    "Thomas": "",
+    "Joe": "",
+    "Ramez": ""
+  }
+}

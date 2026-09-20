@@ -1,0 +1,26 @@
+{
+  "walkthroughFormId": "262314703244045",
+  "dashboardPort": 4820,
+  "staleAfterDays": 10,
+  "coverageWeeks": 6,
+  "questionMap": {
+    "coordinator": "2",
+    "walkDate": "3",
+    "lodge": "64",
+    "floor": "68",
+    "comments": "72",
+    "wings": {
+      "A": "73", "B": "74", "C": "75", "D": "76",
+      "E": "77", "F": "78", "G": "79", "H": "80"
+    },
+    "sections": {
+      "Restrooms": "81",
+      "Cleaning supplies": "82",
+      "Water dispenser": "83",
+      "Cleaning solutions": "84",
+      "Paper products": "85",
+      "Maintenance": "70"
+    },
+    "uploads": ["60", "86", "87", "88", "89", "90"]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "followup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aggregates JotForm lodge-walkthrough data into actionable task lists, a coordinator dashboard, and weekly digest emails. Runs entirely on-campus.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "sync": "node --disable-warning=ExperimentalWarning src/sync.js",
+    "serve": "node --disable-warning=ExperimentalWarning src/server.js",
+    "digest": "node --disable-warning=ExperimentalWarning src/digest.js",
+    "digest:send": "node --disable-warning=ExperimentalWarning src/digest.js --send",
+    "warm": "node --disable-warning=ExperimentalWarning src/warm.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nodemailer": "^7.0.0"
+  }
+}

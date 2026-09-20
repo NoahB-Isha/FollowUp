@@ -1,0 +1,22 @@
+{
+  "_comment": "Per-lodge wing map. 'inspect: false' wings are non-dorm spaces — coverage and issue extraction skip them. Edit freely; observed uses come from actual walkthrough notes.",
+  "lodges": ["Hickory", "Maple", "Magnolia", "Poplar"],
+  "floors": {
+    "First": ["A", "B", "C", "D"],
+    "Second": ["E", "F", "G", "H"]
+  },
+  "wingOverrides": {
+    "Hickory": {
+      "D": { "use": "Wellness office", "inspect": false }
+    },
+    "Magnolia": {
+      "A": { "use": "Sadhana room", "inspect": false },
+      "C": { "use": "Resident area (often locked)", "inspect": true },
+      "H": { "use": "Resident area (often locked)", "inspect": true }
+    },
+    "Maple": {
+      "H": { "use": "Film room", "inspect": false }
+    },
+    "Poplar": {}
+  }
+}

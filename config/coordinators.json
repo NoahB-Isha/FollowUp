@@ -1,0 +1,17 @@
+{
+  "_comment": "Names must match the form's Coordinator dropdown. Emails are NOT stored here (this file is committed) — put them in config/coordinators.local.json, which is gitignored; see coordinators.local.example.json. 'assignedLodges' scopes a coordinator's weekly digest; empty = they receive the overall summary. 'digest: false' opts someone out.",
+  "coordinators": [
+    { "name": "Diana",   "assignedLodges": [], "digest": true },
+    { "name": "Jacob",   "assignedLodges": [], "digest": true },
+    { "name": "Mora",    "assignedLodges": [], "digest": true },
+    { "name": "Navneet", "assignedLodges": [], "digest": true },
+    { "name": "Nikki",   "assignedLodges": [], "digest": true },
+    { "name": "Rob",     "assignedLodges": [], "digest": true },
+    { "name": "Sjel",    "assignedLodges": [], "digest": true },
+    { "name": "Thomas",  "assignedLodges": [], "digest": false }
+  ],
+  "extraRecipients": [
+    { "name": "Joe",   "note": "mentioned in walkthroughs for maintenance follow-ups" },
+    { "name": "Ramez", "note": "on the form notification list" }
+  ]
+}

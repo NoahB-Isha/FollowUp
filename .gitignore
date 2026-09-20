@@ -1,0 +1,10 @@
+# Secrets & personal data — never commit
+.env
+config/coordinators.local.json
+
+# Local data (JotForm submissions are sensitive; stays on this machine)
+data/
+
+# Dependencies
+node_modules/
+npm-debug.log*

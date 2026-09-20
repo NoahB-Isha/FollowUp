@@ -1,0 +1,126 @@
+import { app } from './config.js';
+import { q, hasWalkthrough, transaction, bumpDataVersion, getMeta, setMeta, db } from './db.js';
+import { getAllSubmissions } from './jotform.js';
+import { normalizeSubmission } from './normalize.js';
+import { extractIssues, isNotApplicable } from './extract.js';
+import { tokens, jaccard, normKey } from './util.js';
+import { warmup } from './photos.js';
+
+/**
+ * Pull submissions from JotForm and fold new ones into the local database.
+ * Incremental twice over: JotForm is asked only for submissions newer than the
+ * last sync (minus a 1-day overlap for safety), and already-seen ids are
+ * skipped — so manual issue state (resolved/assigned) is never clobbered.
+ * All writes happen in one transaction (one fsync instead of hundreds).
+ */
+export async function sync({ full = false, photos = true } = {}) {
+  const lastSeen = full ? null : getMeta('last_created_at');
+  const since = lastSeen ? `${lastSeen.slice(0, 10)} 00:00:00` : null;
+  const subs = await getAllSubmissions(app.walkthroughFormId, { sinceCreatedAt: since });
+  const result = { fetched: subs.length, added: 0, skipped: 0, issuesNew: 0, issuesRecurring: 0, photosWarmed: 0 };
+  const newPhotoUrls = [];
+
+  const insertWalk = q(
+    `INSERT INTO walkthroughs (id, submitted_at, walk_date, coordinator, lodge, floor, comments, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertArea = q(
+    `INSERT INTO area_reports (walkthrough_id, area, kind, statuses_json, note, skipped)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  );
+  const insertPhoto = q(`INSERT INTO photos (walkthrough_id, url) VALUES (?, ?)`);
+  const insertIssue = q(
+    `INSERT INTO issues (lodge, floor, area, description, category, severity, first_seen, last_seen, norm_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertSighting = q(
+    `INSERT INTO issue_sightings (issue_id, walkthrough_id, seen_date, text) VALUES (?, ?, ?, ?)`
+  );
+  const touchIssue = q(
+    `UPDATE issues SET last_seen = MAX(last_seen, ?), occurrences = occurrences + 1 WHERE id = ?`
+  );
+  const openIssuesFor = q(
+    `SELECT id, description FROM issues WHERE status = 'open' AND lodge = ? AND floor = ? AND area = ?`
+  );
+
+  transaction(() => {
+    let maxCreated = lastSeen ?? '';
+    for (const sub of subs) {
+      if (sub.created_at > maxCreated) maxCreated = sub.created_at;
+      if (sub.status === 'DELETED') continue;
+      if (hasWalkthrough(sub.id)) { result.skipped++; continue; }
+      const walk = normalizeSubmission(sub);
+      if (!walk) { result.skipped++; continue; }
+
+      insertWalk.run(walk.id, walk.submittedAt, walk.walkDate, walk.coordinator,
+        walk.lodge, walk.floor, walk.comments, JSON.stringify(sub));
+
+      for (const a of walk.areas) {
+        insertArea.run(walk.id, a.area, a.kind, JSON.stringify(a.statuses), a.note,
+          isNotApplicable(a.note) ? 1 : 0);
+      }
+      for (const url of walk.photos) { insertPhoto.run(walk.id, url); newPhotoUrls.push(url); }
+
+      // Extract issues and dedupe against open ones in the same lodge/floor/area.
+      // Token sets for open issues are computed once per area, not per candidate.
+      const tokenCache = new Map();
+      for (const cand of extractIssues(walk)) {
+        const candTokens = tokens(cand.description);
+        let open = tokenCache.get(cand.area);
+        if (!open) {
+          open = openIssuesFor.all(walk.lodge, walk.floor, cand.area)
+            .map((r) => ({ id: r.id, tok: tokens(r.description) }));
+          tokenCache.set(cand.area, open);
+        }
+        let matched = null;
+        let best = 0;
+        for (const row of open) {
+          const score = jaccard(candTokens, row.tok);
+          if (score > best) { best = score; matched = row; }
+        }
+        if (matched && best >= 0.5) {
+          touchIssue.run(walk.walkDate, matched.id);
+          insertSighting.run(matched.id, walk.id, walk.walkDate, cand.description);
+          result.issuesRecurring++;
+        } else {
+          const { lastInsertRowid } = insertIssue.run(walk.lodge, walk.floor, cand.area,
+            cand.description, cand.category, cand.severity, walk.walkDate, walk.walkDate,
+            normKey(cand.description));
+          insertSighting.run(lastInsertRowid, walk.id, walk.walkDate, cand.description);
+          open.push({ id: Number(lastInsertRowid), tok: candTokens });
+          result.issuesNew++;
+        }
+      }
+      result.added++;
+    }
+    if (maxCreated) setMeta('last_created_at', maxCreated);
+    if (result.added) bumpDataVersion();
+  });
+
+  if (result.added) db.exec('PRAGMA optimize');
+
+  // Warm the photo cache (originals + thumbnails) for what we just ingested so
+  // the first dashboard view is instant. Network-bound; runs after the DB work.
+  if (photos && newPhotoUrls.length) {
+    result.photosWarmed = await warmup(newPhotoUrls, {
+      onError: (url, err) => console.error(`photo warmup failed (${err.message}): …${url.slice(-40)}`),
+    });
+  }
+
+  return result;
+}
+
+// CLI entry: `npm run sync` — flags: --full (refetch everything), --no-photos
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
+  const full = process.argv.includes('--full');
+  const photos = !process.argv.includes('--no-photos');
+  const t0 = performance.now();
+  sync({ full, photos })
+    .then((r) => {
+      const ms = Math.round(performance.now() - t0);
+      console.log(`Fetched ${r.fetched} submissions → ${r.added} new, ${r.skipped} already known (${ms} ms).`);
+      console.log(`Issues: ${r.issuesNew} new, ${r.issuesRecurring} recurring sightings.`);
+      if (photos) console.log(`Photos warmed: ${r.photosWarmed}.`);
+    })
+    .catch((err) => { console.error('Sync failed:', err.message); process.exit(1); });
+}
