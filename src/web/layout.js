@@ -1,3 +1,5 @@
+import { THEMES, MODES } from '../themes.js';
+
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -7,9 +9,20 @@ const NAV = [
   ['/digest', 'Digest preview'],
 ];
 
-export function page({ title, active, body, flash }) {
+function themePicker(theme) {
+  const schemes = Object.entries(THEMES).map(([k, t]) =>
+    `<option value="${k}" ${k === theme.scheme ? 'selected' : ''}>${esc(t.label)}</option>`).join('');
+  const modes = MODES.map((m) =>
+    `<option value="${m}" ${m === theme.mode ? 'selected' : ''}>${m === 'auto' ? 'Auto' : m === 'light' ? 'Light' : 'Dark'}</option>`).join('');
+  return `<form method="post" action="/theme" class="inline theme-form" title="Color scheme">
+    <select name="scheme" onchange="this.form.submit()" aria-label="Color scheme">${schemes}</select>
+    <select name="mode" onchange="this.form.submit()" aria-label="Light or dark">${modes}</select>
+  </form>`;
+}
+
+export function page({ title, active, body, flash, theme = { scheme: 'sunrise', mode: 'auto' } }) {
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-scheme="${esc(theme.scheme)}"${theme.mode !== 'auto' ? ` data-mode="${esc(theme.mode)}"` : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,6 +37,7 @@ export function page({ title, active, body, flash }) {
     `<a href="${href}" ${active === href ? 'class="active"' : ''}>${label}</a>`).join('')}
   </nav>
   <span class="spacer"></span>
+  ${themePicker(theme)}
   <form method="post" action="/sync" class="inline"><button class="primary" title="Pull latest submissions from JotForm">Sync now</button></form>
 </header>
 <main>

@@ -52,26 +52,39 @@ export function llmAvailable() {
 }
 
 export function llmModel() {
-  return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return process.env.GEMINI_MODEL || 'gemini-flash-latest';
 }
 
+/** Configured model first, then known-good alternates — model ids churn on the free tier. */
+function modelCandidates() {
+  return [...new Set([llmModel(), 'gemini-flash-latest', 'gemini-3-flash-preview'])];
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function callGemini(body) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${llmModel()}:generateContent`;
-  const send = () => fetch(url, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  let res = await send();
-  if (res.status === 429) { // free-tier rate limit — wait once, retry once
-    await new Promise((r) => setTimeout(r, 15000));
-    res = await send();
+  let lastErr = 'no model attempted';
+  for (const model of modelCandidates()) {
+    const send = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let res = await send();
+    if (res.status === 429 || res.status === 503) { // rate limit / overload — wait once, retry once
+      await sleep(15000);
+      res = await send();
+    }
+    if (res.ok) {
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error(`Gemini returned no text (finishReason: ${data.candidates?.[0]?.finishReason ?? 'unknown'})`);
+      return text;
+    }
+    lastErr = `${model} → HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`;
+    // 404 (model retired) or persistent 429/503: fall through to the next candidate.
   }
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error(`Gemini returned no text (finishReason: ${data.candidates?.[0]?.finishReason ?? 'unknown'})`);
-  return text;
+  throw new Error(lastErr);
 }
 
 /** @returns {Promise<Array<{area, description, category, severity}>>} */

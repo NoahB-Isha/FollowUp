@@ -14,6 +14,7 @@ import {
   issueDetail, similarIssues,
 } from './queries.js';
 import { verifyToken } from './links.js';
+import { buildThemeCss, THEMES, MODES } from './themes.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
@@ -22,6 +23,23 @@ import { today, weekStart, addDays } from './util.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = express();
 server.use(express.urlencoded({ extended: false }));
+
+// ---------- Theme (scheme + light/dark mode), persisted in a cookie ----------
+server.use((req, res, next) => {
+  const m = /(?:^|;\s*)fu_theme=([\w-]+)\.([\w-]+)/.exec(req.headers.cookie || '');
+  req.theme = {
+    scheme: THEMES[m?.[1]] ? m[1] : 'sunrise',
+    mode: MODES.includes(m?.[2]) ? m[2] : 'auto',
+  };
+  next();
+});
+
+server.post('/theme', (req, res) => {
+  const scheme = THEMES[req.body.scheme] ? req.body.scheme : 'sunrise';
+  const mode = MODES.includes(req.body.mode) ? req.body.mode : 'auto';
+  res.set('Set-Cookie', `fu_theme=${scheme}.${mode}; Path=/; Max-Age=31536000; SameSite=Lax`);
+  res.redirect(req.get('referer') || '/');
+});
 
 // Optional shared token — for when this moves from a laptop to a shared Pi.
 const TOKEN = process.env.FOLLOWUP_TOKEN;
@@ -64,7 +82,8 @@ const rcache = new Map(); // originalUrl → { key, body, type }
 const RCACHE_MAX = 300;
 function cachedGet(handler) {
   return (req, res) => {
-    const key = `${today()}|${dataVersion()}`; // date in key: "n days open" labels roll over at midnight
+    // date in key: "n days open" labels roll over at midnight; theme in key: pages embed it
+    const key = `${today()}|${dataVersion()}|${req.theme.scheme}.${req.theme.mode}`;
     const hit = rcache.get(req.originalUrl);
     if (hit && hit.key === key) {
       res.type(hit.type);
@@ -83,7 +102,8 @@ function cachedGet(handler) {
 }
 
 // ---------- Static: CSS from memory with revalidation ----------
-const CSS = readFileSync(path.join(__dirname, 'web/styles.css'), 'utf8');
+// Theme tokens are generated per scheme × mode; the structural stylesheet follows.
+const CSS = buildThemeCss() + readFileSync(path.join(__dirname, 'web/styles.css'), 'utf8');
 server.get('/styles.css', (req, res) => {
   res.set('Cache-Control', 'no-cache'); // ETag (automatic) makes revalidation a 304
   res.type('text/css').send(CSS);
@@ -113,15 +133,15 @@ server.get('/', cachedGet((req, res) => {
     weekIssues: open.filter((i) => i.last_seen >= wkStart),
     longTerm: open.filter((i) => i.first_seen <= twoWeeksAgo).slice(0, 10),
   });
-  res.send(page({ title: 'Overview', active: '/', body, flash: req.query.flash }));
+  res.send(page({ theme: req.theme, title: 'Overview', active: '/', body, flash: req.query.flash }));
 }));
 
 server.get('/lodges/:lodge', cachedGet((req, res) => {
   const health = lodgeHealth().find((h) => h.lodge === req.params.lodge);
-  if (!health) return res.status(404).send(page({ title: 'Not found', body: '<p>Unknown lodge.</p>' }));
+  if (!health) return res.status(404).send(page({ theme: req.theme, title: 'Not found', body: '<p>Unknown lodge.</p>' }));
   const issues = openIssues({ lodge: health.lodge })
     .sort((a, b) => a.area.localeCompare(b.area) || (a.severity === 'high' ? -1 : 1));
-  res.send(page({
+  res.send(page({ theme: req.theme,
     title: health.lodge, active: '/',
     body: pages.lodgeBody({
       health,
@@ -144,7 +164,7 @@ server.get('/issues', cachedGet((req, res) => {
     filters,
     lodgesList: lodges.lodges,
   });
-  res.send(page({ title: 'Issues', active: '/issues', body, flash: req.query.flash }));
+  res.send(page({ theme: req.theme, title: 'Issues', active: '/issues', body, flash: req.query.flash }));
 }));
 
 // Retired list pages — walkthrough details live on, linked from lodge pages.
@@ -153,8 +173,8 @@ server.get('/completion', (req, res) => res.redirect('/'));
 
 server.get('/issue/:id', cachedGet((req, res) => {
   const detail = issueDetail(Number(req.params.id));
-  if (!detail) return res.status(404).send(page({ title: 'Not found', body: '<p>Issue not found.</p>' }));
-  res.send(page({
+  if (!detail) return res.status(404).send(page({ theme: req.theme, title: 'Not found', body: '<p>Issue not found.</p>' }));
+  res.send(page({ theme: req.theme,
     title: `Issue — ${detail.issue.lodge}`, active: '/issues',
     body: pages.issueDetailBody({
       ...detail,
@@ -165,8 +185,8 @@ server.get('/issue/:id', cachedGet((req, res) => {
 
 server.get('/walkthroughs/:id', cachedGet((req, res) => {
   const detail = walkthroughDetail(req.params.id);
-  if (!detail) return res.status(404).send(page({ title: 'Not found', body: '<p>Walkthrough not found. Try Sync.</p>' }));
-  res.send(page({
+  if (!detail) return res.status(404).send(page({ theme: req.theme, title: 'Not found', body: '<p>Walkthrough not found. Try Sync.</p>' }));
+  res.send(page({ theme: req.theme,
     title: `${detail.walk.lodge} ${detail.walk.floor}`, active: '/walkthroughs',
     body: pages.walkthroughDetailBody(detail),
   }));
@@ -177,7 +197,7 @@ server.get('/digest', cachedGet((req, res) => {
   const selected = names.includes(req.query.who) ? req.query.who : names[0];
   const c = coordinators.coordinators.find((x) => x.name === selected);
   const { html } = buildDigest(c);
-  res.send(page({ title: 'Digest', active: '/digest', body: pages.digestBody({ names, selected, html }) }));
+  res.send(page({ theme: req.theme, title: 'Digest', active: '/digest', body: pages.digestBody({ names, selected, html }) }));
 }));
 
 // ---------- Actions ----------
@@ -204,20 +224,20 @@ server.post('/issues/:id/status', (req, res) => {
 server.get('/r/:token', (req, res) => {
   const id = verifyToken(req.params.token);
   const detail = id && issueDetail(id);
-  if (!detail) return res.status(404).send(page({ title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid — it may be from an older message.</p>' }));
-  res.send(page({ title: 'Check off', body: pages.magicConfirmBody({ issue: detail.issue, token: req.params.token }) }));
+  if (!detail) return res.status(404).send(page({ theme: req.theme, title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid — it may be from an older message.</p>' }));
+  res.send(page({ theme: req.theme, title: 'Check off', body: pages.magicConfirmBody({ issue: detail.issue, token: req.params.token }) }));
 });
 
 server.post('/r/:token', (req, res) => {
   const id = verifyToken(req.params.token);
   const detail = id && issueDetail(id);
-  if (!detail) return res.status(404).send(page({ title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid.</p>' }));
+  if (!detail) return res.status(404).send(page({ theme: req.theme, title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid.</p>' }));
   if (req.query.undo === '1') {
     setIssueStatus(id, 'open');
-    return res.send(page({ title: 'Reopened', body: pages.magicConfirmBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
+    return res.send(page({ theme: req.theme, title: 'Reopened', body: pages.magicConfirmBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
   }
   setIssueStatus(id, 'resolved', 'magic-link');
-  res.send(page({ title: 'Done', body: pages.magicDoneBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
+  res.send(page({ theme: req.theme, title: 'Done', body: pages.magicDoneBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
 });
 
 // ---------- Photo serving (key stays server-side; cached + immutable) ----------

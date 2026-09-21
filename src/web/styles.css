@@ -15,45 +15,16 @@
   font-weight: 300 800; font-style: normal; font-display: swap;
 }
 
+/* Color tokens (per scheme × mode) are generated from src/themes.js and served
+   ahead of this file. Only theme-independent tokens live here. */
 :root {
-  color-scheme: light;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: 'Bricolage Grotesque', var(--font-body);
-
-  /* warm, slightly orangey palette */
-  --page: #f9f0e4;
-  --surface: #fffdf9;
-  --ink: #241c12;
-  --ink-2: #5d5245;
-  --muted: #97897a;
-  --hairline: #eee0cf;
-  --border: rgba(95, 62, 24, 0.13);
-  --accent: #2a78d6;
   --good: #0ca30c;
-  --good-text: #006300;
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
-
-  --shadow-sm: 0 1px 2px rgba(99, 62, 18, 0.06), 0 3px 10px rgba(99, 62, 18, 0.08);
-  --shadow-md: 0 3px 6px rgba(99, 62, 18, 0.08), 0 10px 26px rgba(99, 62, 18, 0.14);
   --btn-glow: 0 2px 8px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #181209;
-    --surface: #231b10;
-    --ink: #fdf6ec;
-    --ink-2: #d3c6b4;
-    --muted: #998c7c;
-    --hairline: #392d1e;
-    --border: rgba(255, 224, 185, 0.13);
-    --accent: #3987e5;
-    --good-text: #0ca30c;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.40);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.50), 0 12px 30px rgba(0, 0, 0, 0.55);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -255,14 +226,15 @@ button, .btn {
 }
 button:hover, .btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow-sm); text-decoration: none; }
 button:active, .btn:active { transform: translateY(0); box-shadow: none; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.primary:hover { color: #fff; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
+button.primary:hover { color: var(--accent-ink, #fff); }
 form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; vertical-align: middle; }
+.theme-form select { padding: 4px 6px; font-size: 12.5px; color: var(--ink-2); }
 
 /* ---- Follow up: the hero action ---- */
 .btn-followup, details.fu > summary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--accent-ink, #fff);
   border: none; cursor: pointer; user-select: none;
   border-radius: 11px; padding: 9px 15px;
   font: 700 13.5px/1 var(--font-body);
@@ -274,7 +246,7 @@ form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; ve
   transform: translateY(-1.5px);
   box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 48%, transparent);
   background: color-mix(in srgb, var(--accent) 90%, #fff 10%);
-  color: #fff; text-decoration: none;
+  color: var(--accent-ink, #fff); text-decoration: none;
 }
 .btn-followup:active, details.fu > summary:active { transform: translateY(0.5px); box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 40%, transparent); }
 .btn-followup svg, details.fu summary svg { width: 15px; height: 15px; flex: none; }
