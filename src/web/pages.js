@@ -38,15 +38,29 @@ function issueMessage(i) {
   ].join('\n');
 }
 
-/** One WhatsApp button per responsible contact (lodge owner / assignee + department). */
-function contactButtons(i) {
-  const msg = issueMessage(i);
-  return contactsForIssue(i).map((name) =>
-    `<a class="btn wa" target="_blank" rel="noreferrer" href="${waHref(name, msg)}"
-        title="${phoneFor(name)
-          ? `WhatsApp ${esc(name)} about this`
-          : `No number on file for ${esc(name)} — WhatsApp opens with the message ready; pick their chat`}">💬 ${esc(name)}</a>`
-  ).join(' ');
+const SEND_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>`;
+
+function waTitle(name) {
+  return phoneFor(name)
+    ? `WhatsApp ${esc(name)}`
+    : `No number on file for ${esc(name)} — WhatsApp opens with the message ready; pick their chat`;
+}
+
+/**
+ * The hero action: one big Follow up button. A single responsible contact
+ * links straight to their WhatsApp; several expand into per-person links.
+ */
+function followUpButton(contacts, msg) {
+  if (contacts.length <= 1) {
+    const name = contacts[0] || '';
+    return `<a class="btn-followup" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up</a>`;
+  }
+  const links = contacts.map((name) =>
+    `<a target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">💬 ${esc(name)}</a>`).join('');
+  return `<details class="fu">
+    <summary title="Follow up via WhatsApp — ${contacts.map(esc).join(', ')}">${SEND_ICON} Follow up <span class="caret">▾</span></summary>
+    <div class="fu-menu">${links}</div>
+  </details>`;
 }
 
 function ageText(i) {
@@ -76,7 +90,7 @@ function resolveForms(i) {
 
 function issueActions(issue) {
   return `
-    ${contactButtons(issue)}
+    ${followUpButton(contactsForIssue(issue), issueMessage(issue))}
     ${resolveForms(issue)}
     <form class="inline" method="post" action="/issues/${issue.id}/status">
       <input type="hidden" name="status" value="dismissed"><button title="Not actionable / duplicate">✕</button>
@@ -108,7 +122,7 @@ export function longestOpenTable(issues) {
       <td class="desc">${esc(i.description)}${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
       <td class="nowrap">${catBadge(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
       <td class="nowrap">
-        ${contactButtons(i)}
+        ${followUpButton(contactsForIssue(i), issueMessage(i))}
         ${resolveForms(i)}
       </td>
     </tr>`).join('')}
@@ -151,14 +165,8 @@ function weeklyWalkTable(weekly) {
       ? walks.map((w) => `<a href="/walkthroughs/${esc(w.id)}">${esc(w.lodge)} ${w.floor === 'First' ? '1st' : '2nd'} (${fmtDate(w.walk_date)})</a>`).join(', ')
       : '<span class="muted">—</span>';
     const scope = c.role === 'overall' ? '' : responsibilityLabel(c).replace('—', '');
-    const reminder = waHref(c.name,
-      `Hi ${c.name} — friendly reminder to complete your lodge walkthrough${scope ? ` for ${scope}` : ''} this week (${fmtWeek(weekly.weekStart)}) and submit the checklist form. Thank you! 🙏`);
-    const action = done
-      ? ''
-      : `<a class="btn wa" target="_blank" rel="noreferrer" href="${reminder}"
-           title="${phoneFor(c.name)
-             ? `WhatsApp ${esc(c.name)} a reminder`
-             : `No number on file for ${esc(c.name)} — WhatsApp opens with the reminder ready; pick their chat`}">💬 Follow up</a>`;
+    const reminder = `Hi ${c.name} — friendly reminder to complete your lodge walkthrough${scope ? ` for ${scope}` : ''} this week (${fmtWeek(weekly.weekStart)}) and submit the checklist form. Thank you! 🙏`;
+    const action = done ? '' : followUpButton([c.name], reminder);
     return `<tr>
       <td class="nowrap"><b>${esc(c.name)}</b></td>
       <td class="nowrap muted">${esc(responsibilityLabel(c))}</td>
