@@ -6,7 +6,7 @@
     { "name": "Mora",    "assignedLodges": ["Magnolia", "Poplar"], "digest": true },
     { "name": "Navneet", "assignedLodges": ["Maple"], "digest": true },
     { "name": "Nikki",   "role": "overall", "assignedLodges": [], "digest": true },
-    { "name": "Rob",     "assignedLodges": [], "digest": true },
+    { "name": "Rob",     "assignedLodges": ["Hickory"], "digest": true },
     { "name": "Sjel",    "assignedLodges": [], "digest": true },
     { "name": "Thomas",  "assignedLodges": [], "digest": false }
   ],
