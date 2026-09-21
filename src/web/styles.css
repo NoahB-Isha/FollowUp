@@ -226,47 +226,51 @@ button, .btn {
   box-shadow: 0 1px 2px rgba(99, 62, 18, 0.06);
   transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-button:hover, .btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow-sm); text-decoration: none; }
+button:hover, .btn:hover {
+  border-color: var(--action, var(--accent));
+  color: color-mix(in srgb, var(--action, var(--accent)) 70%, var(--ink));
+  transform: translateY(-1px); box-shadow: var(--shadow-sm); text-decoration: none;
+}
 button:active, .btn:active { transform: translateY(0); box-shadow: none; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
-button.primary:hover { color: var(--accent-ink, #fff); }
+button.primary { background: var(--action, var(--accent)); border-color: var(--action, var(--accent)); color: var(--action-ink, #fff); }
+button.primary:hover { color: var(--action-ink, #fff); }
 form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; vertical-align: middle; }
 .theme-form select { padding: 4px 6px; font-size: 12.5px; color: var(--ink-2); }
 
 /* ---- Follow up: the hero action ---- */
 .btn-followup, details.fu > summary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: var(--accent); color: var(--accent-ink, #fff);
+  background: var(--action, var(--accent)); color: var(--action-ink, #fff);
   border: none; cursor: pointer; user-select: none;
   border-radius: 11px; padding: 9px 15px;
   font: 700 13.5px/1 var(--font-body);
   white-space: nowrap;
-  box-shadow: var(--btn-glow) color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow: var(--btn-glow) color-mix(in srgb, var(--action, var(--accent)) 48%, transparent);
   transition: transform 0.13s ease, box-shadow 0.13s ease, background 0.13s ease;
 }
 .btn-followup:hover, details.fu > summary:hover {
   transform: translateY(-1.5px);
-  box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 48%, transparent);
-  background: color-mix(in srgb, var(--accent) 90%, #fff 10%);
-  color: var(--accent-ink, #fff); text-decoration: none;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--action, var(--accent)) 55%, transparent);
+  background: color-mix(in srgb, var(--action, var(--accent)) 86%, #fff 14%);
+  color: var(--action-ink, #fff); text-decoration: none;
 }
-.btn-followup:active, details.fu > summary:active { transform: translateY(0.5px); box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 40%, transparent); }
+.btn-followup:active, details.fu > summary:active { transform: translateY(0.5px); box-shadow: 0 1px 4px color-mix(in srgb, var(--action, var(--accent)) 40%, transparent); }
 .btn-followup svg, details.fu summary svg { width: 15px; height: 15px; flex: none; }
 details.fu { display: inline-block; }
 details.fu > summary { list-style: none; }
 details.fu > summary::-webkit-details-marker { display: none; }
 details.fu > summary .caret { font-size: 10px; opacity: 0.85; }
-details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #000 16%); }
+details.fu[open] > summary { background: color-mix(in srgb, var(--action, var(--accent)) 84%, #000 16%); }
 .fu-menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .fu-menu a {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--accent); font-weight: 700; font-size: 13px;
+  background: color-mix(in srgb, var(--action, var(--accent)) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--action, var(--accent)) 40%, transparent);
+  color: color-mix(in srgb, var(--action, var(--accent)) 55%, var(--ink)); font-weight: 700; font-size: 13px;
   transition: transform 0.12s ease, background 0.12s ease;
 }
-.fu-menu a:hover { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); transform: translateY(-1px); text-decoration: none; }
+.fu-menu a:hover { background: color-mix(in srgb, var(--action, var(--accent)) 22%, var(--surface)); transform: translateY(-1px); text-decoration: none; }
 
 /* Coordinator bubbles ("This week") */
 .coords {
