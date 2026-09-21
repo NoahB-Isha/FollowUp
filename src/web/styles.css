@@ -67,12 +67,7 @@ header nav a {
 header nav a:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--ink); text-decoration: none; }
 header nav a.active {
   color: var(--ink); font-weight: 700;
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
-  position: relative;
-}
-header nav a.active::after {
-  content: ""; position: absolute; left: 11px; right: 11px; bottom: 2px;
-  height: 3px; border-radius: 2px; background: var(--flair, var(--accent));
+  background: color-mix(in srgb, var(--flair, var(--accent)) 22%, transparent);
 }
 header .spacer { flex: 1; }
 
