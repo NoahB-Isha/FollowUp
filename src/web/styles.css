@@ -259,9 +259,9 @@ form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; ve
    the page down; "Sync now" stays the lone solid button. */
 .btn-followup, details.fu > summary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: color-mix(in srgb, var(--action, var(--accent)) 13%, var(--surface));
-  color: color-mix(in srgb, var(--action, var(--accent)) 72%, var(--ink));
-  border: 1px solid color-mix(in srgb, var(--action, var(--accent)) 34%, transparent);
+  background: color-mix(in srgb, var(--action, var(--accent)) 14%, var(--surface));
+  color: color-mix(in srgb, var(--action, var(--accent)) 58%, var(--ink));
+  border: 1px solid color-mix(in srgb, var(--action, var(--accent)) 38%, transparent);
   cursor: pointer; user-select: none;
   border-radius: 11px; padding: 8px 14px;
   font: 700 13.5px/1 var(--font-body);
@@ -271,9 +271,9 @@ form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; ve
 .btn-followup:hover, details.fu > summary:hover {
   transform: translateY(-1.5px);
   box-shadow: var(--shadow-sm);
-  background: color-mix(in srgb, var(--action, var(--accent)) 21%, var(--surface));
-  border-color: color-mix(in srgb, var(--action, var(--accent)) 60%, transparent);
-  color: color-mix(in srgb, var(--action, var(--accent)) 72%, var(--ink)); text-decoration: none;
+  background: color-mix(in srgb, var(--action, var(--accent)) 22%, var(--surface));
+  border-color: color-mix(in srgb, var(--action, var(--accent)) 62%, transparent);
+  color: color-mix(in srgb, var(--action, var(--accent)) 58%, var(--ink)); text-decoration: none;
 }
 .btn-followup:active, details.fu > summary:active { transform: translateY(0.5px); box-shadow: none; }
 .btn-followup svg, details.fu summary svg { width: 15px; height: 15px; flex: none; }
