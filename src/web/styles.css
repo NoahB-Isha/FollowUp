@@ -287,7 +287,20 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
 }
 .fu-menu a:hover { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); transform: translateY(-1px); text-decoration: none; }
 
-/* Streak grid (Completion page) */
+/* Segmented toggle */
+.segmented {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 11px;
+  box-shadow: var(--shadow-sm); margin: -4px 0 14px;
+}
+.segmented a {
+  padding: 5px 13px; border-radius: 8px; color: var(--ink-2);
+  font-weight: 600; font-size: 13px; transition: background 0.12s ease, color 0.12s ease;
+}
+.segmented a:hover { text-decoration: none; color: var(--ink); }
+.segmented a.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); }
+
+/* Streak grid (tracker + Completion page) */
 table.streak td, table.streak th { text-align: center; }
 table.streak td:first-child, table.streak th:first-child { text-align: left; }
 table.streak th.thisweek, table.streak td.thisweek { background: color-mix(in srgb, var(--accent) 6%, transparent); }

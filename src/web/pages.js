@@ -116,9 +116,9 @@ export function issuesTable(issues, { areaOnly = false } = {}) {
   </table>`;
 }
 
-/** Descriptive longest-open list for the overview: where, what, type + age, follow up / resolve. */
-export function longestOpenTable(issues) {
-  if (!issues.length) return `<div class="empty">Nothing open. 🎉</div>`;
+/** Descriptive issue list for the overview: where, what, type + age, follow up / resolve. */
+export function longestOpenTable(issues, { emptyMsg = 'Nothing open. 🎉' } = {}) {
+  if (!issues.length) return `<div class="empty">${emptyMsg}</div>`;
   return `<table class="data">
     <tr><th>Where</th><th>Issue</th><th>Type &amp; age</th><th>Act</th></tr>
     ${issues.map((i) => `<tr>
@@ -212,7 +212,7 @@ export function coverageGrid(cov) {
   </table>`;
 }
 
-export function overviewBody({ s, health, weekly, longest }) {
+export function overviewBody({ s, health, weekly, trackerView, streakMetrics, weekIssues }) {
   return `
   <h1>Lodge ambiance</h1>
   <p class="sub">${s.open} open issues · ${s.high} high priority · ${s.thisWeek} walkthrough${s.thisWeek === 1 ? '' : 's'} this week · ${s.resolved30} resolved in the last 30 days</p>
@@ -220,11 +220,15 @@ export function overviewBody({ s, health, weekly, longest }) {
   <h2>Dormitory health</h2>
   <div class="lodgecards">${health.map(lodgeCard).join('')}</div>
 
-  <h2>Weekly walkthrough — ${esc(fmtWeek(weekly.weekStart))}</h2>
-  <div class="card">${weeklyWalkTable(weekly)}</div>
+  <h2>Walkthrough tracker</h2>
+  <div class="segmented">
+    <a class="${trackerView === 'week' ? 'on' : ''}" href="/">This week — ${esc(fmtWeek(weekly.weekStart))}</a>
+    <a class="${trackerView === '6w' ? 'on' : ''}" href="/?tracker=6w">Last 6 weeks</a>
+  </div>
+  <div class="card">${trackerView === '6w' ? streakTable(streakMetrics) : weeklyWalkTable(weekly)}</div>
 
-  <h2>Longest open issues <a style="font-size:13px;font-weight:400" href="/issues">see all →</a></h2>
-  <div class="card">${longestOpenTable(longest)}</div>`;
+  <h2>This week's issues <a style="font-size:13px;font-weight:400" href="/issues">see all issues →</a></h2>
+  <div class="card">${longestOpenTable(weekIssues, { emptyMsg: 'No issues reported this week yet.' })}</div>`;
 }
 
 export function lodgeBody({ health, issues, floorWalks, walks, cov }) {
@@ -349,13 +353,12 @@ function meter(fraction, text) {
   return `<span class="meter" role="img" aria-label="${pct}%"><span style="width:${pct}%"></span></span>${text ?? `${pct}%`}`;
 }
 
-export function completionBody({ m }) {
+/** Coordinator × week streak grid — used on the overview tracker and the Completion page. */
+export function streakTable(m) {
   const currentWeek = weekStart(today());
-
-  // The visual: coordinator × week streak grid.
-  const streakHead = m.weekStarts.map((ws) =>
+  const head = m.weekStarts.map((ws) =>
     `<th title="Week of ${esc(fmtWeek(ws))}" ${ws === currentWeek ? 'class="thisweek"' : ''}>${esc(fmtDate(ws))}</th>`).join('');
-  const streakRows = m.streak.map((c) => {
+  const rows = m.streak.map((c) => {
     const cfg = coordinators.coordinators.find((x) => x.name === c.name);
     const cells = c.cells.map((n, idx) => {
       const isNow = m.weekStarts[idx] === currentWeek;
@@ -369,14 +372,13 @@ export function completionBody({ m }) {
       <td class="num">${c.lastWalked ? fmtDate(c.lastWalked) : '<span class="muted">never</span>'}</td>
     </tr>`;
   }).join('');
+  return `<table class="data streak">
+    <tr><th>Coordinator</th>${head}<th>Total</th><th>Last walked</th></tr>
+    ${rows}
+  </table>`;
+}
 
-  const weeklyRows = [...m.weekly].reverse().map((w) => `<tr>
-    <td class="nowrap">${esc(fmtWeek(w.week))}</td>
-    <td class="num">${w.walkthroughs}</td>
-    <td class="nowrap">${meter(w.unitsCovered / w.totalUnits, `${w.unitsCovered}/${w.totalUnits} floors`)}</td>
-    <td>${w.coordinators.map(esc).join(', ') || '<span class="muted">—</span>'}</td>
-  </tr>`).join('');
-
+export function completionBody({ m }) {
   return `
   <h1>Walkthrough completion</h1>
   <p class="sub">Who's walking, and how consistently.</p>
@@ -387,16 +389,7 @@ export function completionBody({ m }) {
   </div>
 
   <h2>Walkthrough streak — last ${m.weekStarts.length} weeks</h2>
-  <div class="card"><table class="data streak">
-    <tr><th>Coordinator</th>${streakHead}<th>Total</th><th>Last walked</th></tr>
-    ${streakRows}
-  </table></div>
-
-  <h2>Floor coverage by week</h2>
-  <div class="card"><table class="data">
-    <tr><th>Week</th><th>Walkthroughs</th><th>Floor coverage</th><th>Who walked</th></tr>
-    ${weeklyRows}
-  </table></div>`;
+  <div class="card">${streakTable(m)}</div>`;
 }
 
 export function issueDetailBody({ issue, sightings, similar }) {

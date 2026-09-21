@@ -17,7 +17,7 @@ import { verifyToken } from './links.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
-import { today } from './util.js';
+import { today, weekStart } from './util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = express();
@@ -97,11 +97,15 @@ server.use('/fonts', express.static(path.join(__dirname, 'web/fonts'), {
 // ---------- HTML pages ----------
 
 server.get('/', cachedGet((req, res) => {
+  const trackerView = req.query.tracker === '6w' ? '6w' : 'week';
+  const wkStart = weekStart(today());
   const body = pages.overviewBody({
     s: stats(),
     health: lodgeHealth(),
     weekly: weeklyWalkStatus(),
-    longest: openIssues({}).slice(0, 8),
+    trackerView,
+    streakMetrics: trackerView === '6w' ? completionMetrics() : null,
+    weekIssues: openIssues({}).filter((i) => i.last_seen >= wkStart),
   });
   res.send(page({ title: 'Overview', active: '/', body, flash: req.query.flash }));
 }));

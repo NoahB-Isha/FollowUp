@@ -199,7 +199,7 @@ export function lodgeWalkthroughs(lodge, limit = 12) {
 
 /**
  * Walkthrough-completion picture: who is walking, how consistently, shown as
- * a coordinator × week streak grid plus a weekly floor-coverage rollup.
+ * a coordinator × week streak grid.
  */
 export function completionMetrics() {
   const walks = q(
@@ -212,19 +212,6 @@ export function completionMetrics() {
   const start = weekStart(addDays(today(), -7 * (weeks - 1)));
   const weekStarts = [];
   for (let i = 0; i < weeks; i++) weekStarts.push(addDays(start, i * 7));
-  const totalUnits = coverageUnits().length;
-
-  // Weekly rollup over the coverage window.
-  const weekly = weekStarts.map((ws) => {
-    const inWeek = walks.filter((w) => weekStart(w.walk_date) === ws);
-    return {
-      week: ws,
-      walkthroughs: inWeek.length,
-      unitsCovered: new Set(inWeek.map((w) => `${w.lodge}|${w.floor}`)).size,
-      totalUnits,
-      coordinators: [...new Set(inWeek.map((w) => w.coordinator))],
-    };
-  });
 
   // Streak grid: config order first, then any unexpected submitters.
   const names = coordinators.coordinators.map((c) => c.name);
@@ -242,7 +229,6 @@ export function completionMetrics() {
 
   return {
     weekStarts,
-    weekly,
     streak,
     summary: {
       total: walks.length,
