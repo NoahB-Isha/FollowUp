@@ -11,7 +11,9 @@ import {
   stats, coverage, openIssues, latestWalkDates, recentWalkthroughs,
   walkthroughDetail, setIssueStatus,
   lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
+  issueDetail, similarIssues, walkthroughCount,
 } from './queries.js';
+import { verifyToken } from './links.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
@@ -25,6 +27,8 @@ server.use(express.urlencoded({ extended: false }));
 const TOKEN = process.env.FOLLOWUP_TOKEN;
 server.use((req, res, next) => {
   if (!TOKEN) return next();
+  // Magic links carry their own signed authorization; assets are harmless.
+  if (req.path.startsWith('/r/') || req.path === '/styles.css' || req.path.startsWith('/fonts/')) return next();
   if (req.query.token === TOKEN) {
     res.cookie?.('fu', TOKEN);
     return next();
@@ -135,9 +139,28 @@ server.get('/issues', cachedGet((req, res) => {
 }));
 
 server.get('/walkthroughs', cachedGet((req, res) => {
+  const showingAll = req.query.all === '1';
   res.send(page({
     title: 'Walkthroughs', active: '/walkthroughs',
-    body: pages.walkthroughsBody({ cov: coverage(), recent: recentWalkthroughs(200) }),
+    body: pages.walkthroughsBody({
+      cov: coverage(),
+      recent: showingAll ? recentWalkthroughs(1000) : recentWalkthroughs(1000, { sinceWeeks: 6 }),
+      showingAll,
+      totalCount: walkthroughCount(),
+    }),
+  }));
+}));
+
+server.get('/issue/:id', cachedGet((req, res) => {
+  const detail = issueDetail(Number(req.params.id));
+  if (!detail) return res.status(404).send(page({ title: 'Not found', body: '<p>Issue not found.</p>' }));
+  res.send(page({
+    title: `Issue — ${detail.issue.lodge}`, active: '/issues',
+    body: pages.issueDetailBody({
+      ...detail,
+      similar: similarIssues(detail.issue),
+      latestByUnit: latestWalkDates(),
+    }),
   }));
 }));
 
@@ -180,6 +203,29 @@ server.post('/issues/:id/status', (req, res) => {
   const status = ['open', 'resolved', 'dismissed'].includes(req.body.status) ? req.body.status : 'open';
   setIssueStatus(Number(req.params.id), status, req.body.by || 'dashboard');
   res.redirect(req.get('referer') || '/issues');
+});
+
+// ---------- Magic links: check an issue off from any phone ----------
+// GET shows a confirm page (so email/WhatsApp link prefetchers can't resolve
+// things by accident); POST does the deed. The signed token is the auth.
+
+server.get('/r/:token', (req, res) => {
+  const id = verifyToken(req.params.token);
+  const detail = id && issueDetail(id);
+  if (!detail) return res.status(404).send(page({ title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid — it may be from an older message.</p>' }));
+  res.send(page({ title: 'Check off', body: pages.magicConfirmBody({ issue: detail.issue, token: req.params.token }) }));
+});
+
+server.post('/r/:token', (req, res) => {
+  const id = verifyToken(req.params.token);
+  const detail = id && issueDetail(id);
+  if (!detail) return res.status(404).send(page({ title: 'Invalid link', body: '<p style="text-align:center">This link isn’t valid.</p>' }));
+  if (req.query.undo === '1') {
+    setIssueStatus(id, 'open');
+    return res.send(page({ title: 'Reopened', body: pages.magicConfirmBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
+  }
+  setIssueStatus(id, 'resolved', 'magic-link');
+  res.send(page({ title: 'Done', body: pages.magicDoneBody({ issue: issueDetail(id).issue, token: req.params.token }) }));
 });
 
 // ---------- Photo serving (key stays server-side; cached + immutable) ----------

@@ -4,6 +4,7 @@ import { app, coordinators, paths, assignmentMatches } from './config.js';
 import { coverage, openIssues, issueAge } from './queries.js';
 import { today, weekStart, fmtDate, fmtWeek } from './util.js';
 import { smtpConfigured, sendMail } from './mailer.js';
+import { magicUrl } from './links.js';
 
 /**
  * Weekly per-coordinator digest.
@@ -27,6 +28,7 @@ function issueRow(i) {
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;">${esc(i.description)}${sev}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:#52514e;">${CAT_ICON[i.category] || CAT_ICON.other} ${CAT_LABEL[i.category] || i.category}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:${age >= 14 ? '#d03b3b' : '#52514e'};">${ageTxt}${rep}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;"><a href="${magicUrl(i.id)}" style="color:#2a78d6;font-weight:600;text-decoration:none;">✓ done?</a></td>
   </tr>`;
 }
 
@@ -95,7 +97,7 @@ export function buildDigest(coordinator) {
     ${Object.entries(byLodge).map(([lodge, list]) => lodgeSection(lodge, list, wkStart)).join('') || '<p>Nothing open. 🎉</p>'}
 
     <p style="color:#898781;font-size:12px;margin-top:26px;">Sent by FollowUp (runs on-campus). Reply to the overall coordinator with corrections.
-    Mark items resolved on the dashboard so they drop off next week's list.</p>
+    Tap “✓ done?” next to an item once it's handled — it drops off next week's list.</p>
   </div></body></html>`;
 
   const textIssue = (i) => `    - [${i.area}] ${i.description} (${i.category}, open ${issueAge(i)}d)`;

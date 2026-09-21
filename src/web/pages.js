@@ -1,6 +1,7 @@
 import { esc } from './layout.js';
 import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor } from '../config.js';
 import { issueAge } from '../queries.js';
+import { magicUrl } from '../links.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
@@ -34,7 +35,8 @@ function issueMessage(i) {
     `Type: ${CAT_LABEL[i.category] || i.category}${i.severity === 'high' ? ' (HIGH priority)' : ''}`,
     `Open for ${age} day${age === 1 ? '' : 's'} — first seen ${i.first_seen}, reported ${i.occurrences}×`,
     '',
-    'Please take a look and reply here when it’s handled. 🙏',
+    `When it’s handled, tap here to check it off: ${magicUrl(i.id)}`,
+    'Thank you! 🙏',
   ].join('\n');
 }
 
@@ -104,7 +106,7 @@ export function issuesTable(issues, latestByUnit, { areaOnly = false } = {}) {
     <tr><th>Where</th><th>Issue</th><th></th><th>First seen</th><th>Contact / act</th></tr>
     ${issues.map((i) => `<tr>
       <td class="nowrap">${areaOnly ? `<b>${esc(i.area)}</b>` : whereLabel(i)}</td>
-      <td class="desc">${esc(i.description)}</td>
+      <td class="desc"><a href="/issue/${i.id}" title="History & similar issues">${esc(i.description)}</a></td>
       <td class="chips">${chips(i, latestByUnit)}</td>
       <td class="num">${fmtDate(i.first_seen)}</td>
       <td class="nowrap">${issueActions(i)}</td>
@@ -119,7 +121,7 @@ export function longestOpenTable(issues) {
     <tr><th>Where</th><th>Issue</th><th>Type &amp; age</th><th>Act</th></tr>
     ${issues.map((i) => `<tr>
       <td class="nowrap">${whereLabel(i)}</td>
-      <td class="desc">${esc(i.description)}${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
+      <td class="desc"><a href="/issue/${i.id}" title="History & similar issues">${esc(i.description)}</a>${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
       <td class="nowrap">${catBadge(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
       <td class="nowrap">
         ${followUpButton(contactsForIssue(i), issueMessage(i))}
@@ -264,23 +266,24 @@ export function issuesBody({ issues, latestByUnit, filters, lodgesList }) {
   return `
   <h1>Open issues <span class="sub" style="font-size:14px">(${issues.length})</span></h1>
   <form class="filters" method="get" action="/issues">
-    <select name="lodge">${['', ...lodgesList].map((l) => opt(l, filters.lodge, l || 'all lodges')).join('')}</select>
-    <select name="category">${['', ...CATEGORIES].map((c) => opt(c, filters.category, c ? `${CAT_ICON[c]} ${CAT_LABEL[c]}` : 'all categories')).join('')}</select>
-    <select name="severity">${opt('', filters.severity, 'any severity')}${opt('high', filters.severity, '⚠ high')}${opt('normal', filters.severity, 'normal')}</select>
-    <input type="search" name="q" placeholder="search text…" value="${esc(filters.q || '')}">
-    <button class="primary">Filter</button>
-    <a class="btn" href="/issues">Clear</a>
+    <select name="lodge" onchange="this.form.submit()">${['', ...lodgesList].map((l) => opt(l, filters.lodge, l || 'all lodges')).join('')}</select>
+    <select name="category" onchange="this.form.submit()">${['', ...CATEGORIES].map((c) => opt(c, filters.category, c ? `${CAT_ICON[c]} ${CAT_LABEL[c]}` : 'all categories')).join('')}</select>
+    <select name="severity" onchange="this.form.submit()">${opt('', filters.severity, 'any severity')}${opt('high', filters.severity, '⚠ high')}${opt('normal', filters.severity, 'normal')}</select>
+    <input type="search" name="q" placeholder="search… (press enter)" value="${esc(filters.q || '')}">
+    ${filters.lodge || filters.category || filters.severity || filters.q ? '<a class="btn" href="/issues">Clear</a>' : ''}
   </form>
   <div class="card">${issuesTable(issues, latestByUnit)}</div>
   <p class="sub">“✓? not seen” = the issue didn’t come up in the latest walkthrough of that floor — worth confirming, then Resolve.</p>`;
 }
 
-export function walkthroughsBody({ cov, recent }) {
+export function walkthroughsBody({ cov, recent, showingAll, totalCount }) {
   return `
   <h1>Walkthroughs</h1>
   <h2>Coverage — last ${cov.weekStarts.length} weeks</h2>
   <div class="card">${coverageGrid(cov)}</div>
-  <h2>All submissions</h2>
+  <h2>${showingAll ? `All submissions (${totalCount})` : `Last ${cov.weekStarts.length} weeks`}
+    ${!showingAll && totalCount > recent.length ? `<a class="btn" style="margin-left:8px" href="/walkthroughs?all=1">See all ${totalCount} →</a>` : ''}
+    ${showingAll ? `<a class="btn" style="margin-left:8px" href="/walkthroughs">Back to recent</a>` : ''}</h2>
   <div class="card">
     <table class="data">
       <tr><th>Walked</th><th>Submitted</th><th>Lodge</th><th>Floor</th><th>Coordinator</th><th>Issues</th><th>Photos</th><th></th></tr>
@@ -336,77 +339,139 @@ function meter(fraction, text) {
 }
 
 export function completionBody({ m }) {
-  const pct = (x) => `${Math.round(x * 100)}%`;
-  const lagChip = (d) =>
-    d == null ? '—' : d <= 1 ? `${d}d` : `<span class="${d > 3 ? 'status-miss' : ''}" title="${d > 3 ? 'Large gap between walk date and submission — backdated or late entry' : ''}">${d}d</span>`;
+  const currentWeek = weekStart(today());
+
+  // The visual: coordinator × week streak grid.
+  const streakHead = m.weekStarts.map((ws) =>
+    `<th title="Week of ${esc(fmtWeek(ws))}" ${ws === currentWeek ? 'class="thisweek"' : ''}>${esc(fmtDate(ws))}</th>`).join('');
+  const streakRows = m.streak.map((c) => {
+    const cfg = coordinators.coordinators.find((x) => x.name === c.name);
+    const cells = c.cells.map((n, idx) => {
+      const isNow = m.weekStarts[idx] === currentWeek;
+      if (n > 0) return `<td class="${isNow ? 'thisweek' : ''}"><span class="dot did" title="${n} walkthrough${n > 1 ? 's' : ''}">✓${n > 1 ? n : ''}</span></td>`;
+      return `<td class="${isNow ? 'thisweek' : ''}"><span class="dot ${isNow ? 'pending' : 'not'}" title="${isNow ? 'not yet this week' : 'no walkthrough'}">${isNow ? '·' : '—'}</span></td>`;
+    }).join('');
+    return `<tr>
+      <td class="nowrap"><b>${esc(c.name)}</b> <span class="muted" style="font-size:12px">${cfg ? esc(responsibilityLabel(cfg)) : ''}</span></td>
+      ${cells}
+      <td class="num">${c.n}</td>
+      <td class="num">${c.lastWalked ? fmtDate(c.lastWalked) : '<span class="muted">never</span>'}</td>
+    </tr>`;
+  }).join('');
 
   const weeklyRows = [...m.weekly].reverse().map((w) => `<tr>
     <td class="nowrap">${esc(fmtWeek(w.week))}</td>
     <td class="num">${w.walkthroughs}</td>
     <td class="nowrap">${meter(w.unitsCovered / w.totalUnits, `${w.unitsCovered}/${w.totalUnits} floors`)}</td>
-    <td class="num">${w.avgCompleteness == null ? '—' : pct(w.avgCompleteness)}</td>
     <td>${w.coordinators.map(esc).join(', ') || '<span class="muted">—</span>'}</td>
   </tr>`).join('');
 
-  const coordRows = m.perCoordinator.map((c) => {
-    const cfg = coordinators.coordinators.find((x) => x.name === c.name);
-    const resp = cfg ? responsibilityLabel(cfg) : '—';
-    if (!c.n) {
-      return `<tr><td class="nowrap"><b>${esc(c.name)}</b></td><td class="nowrap muted">${esc(resp)}</td>
-        <td class="num">0</td><td colspan="4" class="muted">never submitted</td><td></td></tr>`;
-    }
-    return `<tr>
-      <td class="nowrap"><b>${esc(c.name)}</b></td>
-      <td class="nowrap muted">${esc(resp)}</td>
-      <td class="num">${c.n}</td>
-      <td class="nowrap">${meter(c.weeksActive / c.weeksSpan, `${c.weeksActive}/${c.weeksSpan} weeks`)}</td>
-      <td class="num">${pct(c.avgCompleteness)}</td>
-      <td class="num">${lagChip(c.medianLag)}</td>
-      <td class="num">${c.avgPhotos.toFixed(0)}</td>
-      <td class="num">${fmtDate(c.lastWalked)}</td>
-    </tr>`;
-  }).join('');
-
-  const sectionRows = m.sectionRates.map((s) => `<tr>
-    <td class="nowrap">${esc(s.section)}</td>
-    <td class="nowrap">${meter(s.total ? s.filled / s.total : 0)}</td>
-    <td class="num">${s.filled}/${s.total}</td>
-  </tr>`).join('');
-
   return `
-  <h1>Form completion</h1>
-  <p class="sub">How consistently and thoroughly the walkthrough form is being used — worth trusting before any cleanliness trend.</p>
+  <h1>Walkthrough completion</h1>
+  <p class="sub">Who's walking, and how consistently.</p>
 
   <div class="tiles">
     <div class="tile"><div class="value">${m.summary.total}</div><div class="label">walkthroughs total</div></div>
-    <div class="tile"><div class="value">${pct(m.summary.avgCompleteness)}</div><div class="label">avg form completeness</div></div>
-    <div class="tile"><div class="value">${m.summary.medianLag}d</div><div class="label">median submit lag</div></div>
     <div class="tile"><div class="value">${m.summary.withPhotos}/${m.summary.total}</div><div class="label">with photos</div></div>
   </div>
 
-  <h2>By week</h2>
+  <h2>Walkthrough streak — last ${m.weekStarts.length} weeks</h2>
+  <div class="card"><table class="data streak">
+    <tr><th>Coordinator</th>${streakHead}<th>Total</th><th>Last walked</th></tr>
+    ${streakRows}
+  </table></div>
+
+  <h2>Floor coverage by week</h2>
   <div class="card"><table class="data">
-    <tr><th>Week</th><th>Walkthroughs</th><th>Floor coverage</th><th>Avg completeness</th><th>Who walked</th></tr>
+    <tr><th>Week</th><th>Walkthroughs</th><th>Floor coverage</th><th>Who walked</th></tr>
     ${weeklyRows}
-  </table></div>
+  </table></div>`;
+}
 
-  <h2>By coordinator</h2>
+export function issueDetailBody({ issue, sightings, similar, latestByUnit }) {
+  const statusChip = {
+    open: '<span class="chip st-open">● open</span>',
+    resolved: '<span class="chip st-resolved">✓ resolved</span>',
+    dismissed: '<span class="chip st-dismissed">✕ dismissed</span>',
+  }[issue.status] || esc(issue.status);
+
+  const historyRows = sightings.map((s) => `<tr>
+    <td class="num">${fmtDate(s.seen_date)}</td>
+    <td class="nowrap">${esc(s.coordinator || '—')}</td>
+    <td class="desc">${esc(s.text)}</td>
+    <td class="nowrap"><a href="/walkthroughs/${esc(s.walkthrough_id)}">walkthrough →</a></td>
+  </tr>`).join('');
+
+  const similarRows = similar.map((r) => `<tr>
+    <td class="nowrap">${whereLabel(r)}</td>
+    <td class="desc"><a href="/issue/${r.id}">${esc(r.description)}</a></td>
+    <td class="nowrap">${{
+      open: '<span class="chip st-open">● open</span>',
+      resolved: '<span class="chip st-resolved">✓ resolved</span>',
+      dismissed: '<span class="chip st-dismissed">✕ dismissed</span>',
+    }[r.status] || esc(r.status)}</td>
+    <td class="num">${fmtDate(r.last_seen)}</td>
+  </tr>`).join('');
+
+  return `
+  <p class="crumb"><a href="/issues">← Issues</a></p>
+  <h1 style="font-size:20px">${esc(issue.description)}</h1>
+  <p class="sub">${whereLabel(issue)} · ${chips(issue, latestByUnit)} ${statusChip}</p>
+
+  <p>
+    ${issue.status === 'open' ? `${followUpButton(contactsForIssue(issue), issueMessage(issue))} ${resolveForms(issue)}
+      <form class="inline" method="post" action="/issues/${issue.id}/status">
+        <input type="hidden" name="status" value="dismissed"><button title="Not actionable / duplicate">✕ Dismiss</button>
+      </form>`
+    : `<form class="inline" method="post" action="/issues/${issue.id}/status">
+        <input type="hidden" name="status" value="open"><button>↩ Reopen</button>
+      </form>${issue.resolved_at ? ` <span class="muted">closed ${fmtDate(issue.resolved_at)}${issue.resolved_by ? ` via ${esc(issue.resolved_by)}` : ''}</span>` : ''}`}
+  </p>
+
+  <h2>History — reported ${issue.occurrences}× since ${fmtDate(issue.first_seen)}</h2>
   <div class="card"><table class="data">
-    <tr><th>Coordinator</th><th>Responsible for</th><th>Walks</th><th>Weekly consistency</th><th>Avg completeness</th><th>Median submit lag</th><th>Avg photos</th><th>Last walked</th></tr>
-    ${coordRows}
+    <tr><th>Seen</th><th>Reported by</th><th>Exact words</th><th></th></tr>
+    ${historyRows}
   </table></div>
 
-  <h2>Which form sections get filled in</h2>
-  <div class="card"><table class="data">
-    <tr><th>Section</th><th>Fill rate</th><th></th></tr>
-    ${sectionRows}
-    <tr><td class="nowrap"><b>Wings (all)</b></td>
-      <td class="nowrap">${meter(m.wingTotals.expected ? m.wingTotals.done / m.wingTotals.expected : 0)}</td>
-      <td class="num">${m.wingTotals.done}/${m.wingTotals.expected}</td></tr>
-  </table></div>
+  <h2>Similar issues ${similar.length ? `(${similar.length})` : ''}</h2>
+  ${similar.length
+    ? `<div class="card"><table class="data">
+        <tr><th>Where</th><th>Issue</th><th>Status</th><th>Last seen</th></tr>
+        ${similarRows}
+      </table></div>
+      <p class="sub">Matched on wording — recurring themes (a “water dispenser” problem that keeps coming back) show up here even across lodges or already-resolved entries.</p>`
+    : '<div class="card"><div class="empty">Nothing similar on record.</div></div>'}`;
+}
 
-  <p class="sub">Completeness = answered wings + answered sections ÷ expected for that floor (a wing noted “N/A / locked” counts as answered; non-dorm wings are excluded).
-  Weekly consistency = weeks with ≥1 submission since that person's first walkthrough.</p>`;
+/** Standalone magic-link pages (opened from WhatsApp/email, no login). */
+export function magicConfirmBody({ issue, token }) {
+  return `
+  <div style="max-width:480px;margin:30px auto;text-align:center">
+    <h1>Check this off?</h1>
+    <div class="card" style="text-align:left">
+      <p><b>${esc(issue.description)}</b></p>
+      <p class="sub" style="margin:0">${whereLabel(issue)} · first seen ${fmtDate(issue.first_seen)} · reported ${issue.occurrences}×</p>
+    </div>
+    ${issue.status === 'resolved'
+      ? `<p class="status-ok" style="font-size:16px">✓ Already marked done${issue.resolved_at ? ` on ${fmtDate(issue.resolved_at)}` : ''}.</p>`
+      : `<form method="post" action="/r/${esc(token)}">
+           <button class="btn-followup" style="font-size:16px;padding:13px 26px">✓ Yes, it's done</button>
+         </form>`}
+  </div>`;
+}
+
+export function magicDoneBody({ issue, token }) {
+  return `
+  <div style="max-width:480px;margin:30px auto;text-align:center">
+    <h1>✓ Checked off</h1>
+    <div class="card" style="text-align:left">
+      <p><b>${esc(issue.description)}</b></p>
+      <p class="sub" style="margin:0">${whereLabel(issue)}</p>
+    </div>
+    <p class="status-ok" style="font-size:16px">Marked done — thank you! It drops off the open list and next week's digest.</p>
+    <form method="post" action="/r/${esc(token)}?undo=1"><button>↩ Undo — not actually done</button></form>
+  </div>`;
 }
 
 export function digestBody({ names, selected, html }) {
