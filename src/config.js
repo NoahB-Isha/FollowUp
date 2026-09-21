@@ -40,21 +40,33 @@ export function phoneFor(name) {
   return localPhones[name] || '';
 }
 
-/** Coordinators responsible for a lodge; falls back to 'overall' coordinators. */
-export function lodgeOwnersFor(lodge) {
+/**
+ * Does an assignment list cover this lodge (and floor, if given)?
+ * Entries are "Lodge" (whole building) or "Lodge:Floor" (one floor).
+ * With no floor argument, any assignment on the lodge matches.
+ */
+export function assignmentMatches(assignments, lodge, floor = null) {
+  return (assignments || []).some((a) => {
+    const [l, f] = a.split(':');
+    return l === lodge && (!f || !floor || f === floor);
+  });
+}
+
+/** Coordinators responsible for a lodge (optionally one floor); falls back to 'overall' coordinators. */
+export function lodgeOwnersFor(lodge, floor = null) {
   const owners = coordinators.coordinators
-    .filter((c) => (c.assignedLodges || []).includes(lodge))
+    .filter((c) => assignmentMatches(c.assignedLodges, lodge, floor))
     .map((c) => c.name);
   if (owners.length) return owners;
   return coordinators.coordinators.filter((c) => c.role === 'overall').map((c) => c.name);
 }
 
 /**
- * Contact list for a task: the explicit assignee (or the lodge's coordinators),
+ * Contact list for a task: the explicit assignee (or that floor's coordinators),
  * plus the department coordinators for the issue's category.
  */
 export function contactsForIssue(issue) {
-  const list = issue.assignee ? [issue.assignee] : [...lodgeOwnersFor(issue.lodge)];
+  const list = issue.assignee ? [issue.assignee] : [...lodgeOwnersFor(issue.lodge, issue.floor)];
   for (const n of coordinators.departments?.[issue.category] ?? []) list.push(n);
   return [...new Set(list)];
 }

@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { app, coordinators, paths } from './config.js';
+import { app, coordinators, paths, assignmentMatches } from './config.js';
 import { coverage, openIssues, issueAge } from './queries.js';
 import { today, weekStart, fmtDate, fmtWeek } from './util.js';
 import { smtpConfigured, sendMail } from './mailer.js';
@@ -50,11 +50,11 @@ export function buildDigest(coordinator) {
 
   let issues = openIssues({});
   const mine = issues.filter((i) => i.assignee === coordinator.name);
-  if (scope) issues = issues.filter((i) => scope.includes(i.lodge));
+  if (scope) issues = issues.filter((i) => assignmentMatches(scope, i.lodge, i.floor));
 
   const cov = coverage(2);
   const covRows = cov.units
-    .filter((u) => !scope || scope.includes(u.lodge))
+    .filter((u) => !scope || assignmentMatches(scope, u.lodge, u.floor))
     .map((u) => {
       const thisWk = u.cells[u.cells.length - 1].walks;
       const status = thisWk.length

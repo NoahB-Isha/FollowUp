@@ -145,7 +145,11 @@ function lodgeCard(h) {
 
 function responsibilityLabel(c) {
   if (c.role === 'overall') return 'All lodges (overall)';
-  return (c.assignedLodges || []).join(', ') || '—';
+  const parts = (c.assignedLodges || []).map((a) => {
+    const [lodge, floor] = a.split(':');
+    return floor ? `${lodge} (${floor === 'First' ? '1st' : '2nd'} floor)` : lodge;
+  });
+  return parts.join(', ') || '—';
 }
 
 function weeklyWalkTable(weekly) {
@@ -155,7 +159,7 @@ function weeklyWalkTable(weekly) {
     const what = done
       ? walks.map((w) => `<a href="/walkthroughs/${esc(w.id)}">${esc(w.lodge)} ${w.floor === 'First' ? '1st' : '2nd'} (${fmtDate(w.walk_date)})</a>`).join(', ')
       : '<span class="muted">—</span>';
-    const scope = c.role === 'overall' ? '' : (c.assignedLodges || []).join(' and ');
+    const scope = c.role === 'overall' ? '' : responsibilityLabel(c).replace('—', '');
     const reminder = waHref(c.name,
       `Hi ${c.name} — friendly reminder to complete your lodge walkthrough${scope ? ` for ${scope}` : ''} this week (${fmtWeek(weekly.weekStart)}) and submit the checklist form. Thank you! 🙏`);
     const action = done
@@ -229,8 +233,9 @@ export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks }) {
     const lastTxt = last
       ? `last walked ${fmtDate(last.walk_date)} by ${esc(last.coordinator)}`
       : `<span class="status-miss">never walked</span>`;
+    const floorOwners = lodgeOwnersFor(health.lodge, floor).join(', ');
     return `
-    <h2>${esc(floorLabel(floor))} <span class="h-sub">· ${lastTxt} · ${list.length} open</span></h2>
+    <h2>${esc(floorLabel(floor))} <span class="h-sub">· coord: ${esc(floorOwners)} · ${lastTxt} · ${list.length} open</span></h2>
     <div class="card">${issuesTable(list, latestByUnit, { areaOnly: true })}</div>`;
   }).join('');
 
