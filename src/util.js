@@ -1,5 +1,19 @@
 /** Date + text helpers. All dates are handled as local 'YYYY-MM-DD' strings. */
 
+import { isSea } from 'node:sea';
+
+/**
+ * True when this module is the script the user ran (`node src/x.js`).
+ * Always false inside the packaged executable, where argv[1] is the binary
+ * itself and every module would otherwise think it's the entrypoint.
+ */
+export function isDirectRun(metaUrl) {
+  try { if (isSea()) return false; } catch { /* very old node */ }
+  const arg = process.argv[1];
+  if (!arg) return false;
+  return metaUrl.endsWith(arg.split(/[\\/]/).pop());
+}
+
 export function today() {
   return toISODate(new Date());
 }

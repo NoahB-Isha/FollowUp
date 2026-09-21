@@ -237,6 +237,14 @@ export function completionMetrics() {
   };
 }
 
+/** Pre-pilot triage helper: resolve every open issue first seen on/before a date. */
+export function bulkResolveBefore(date) {
+  const r = q(`UPDATE issues SET status = 'resolved', resolved_at = ?, resolved_by = 'bulk-triage'
+               WHERE status = 'open' AND first_seen <= ?`).run(today(), date);
+  bumpDataVersion();
+  return Number(r.changes);
+}
+
 export function setIssueStatus(id, status, by) {
   const resolvedAt = status === 'open' ? null : today();
   q(`UPDATE issues SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?`)

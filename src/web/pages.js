@@ -1,13 +1,12 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { esc } from './layout.js';
-import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor, lodges as lodgesCfg } from '../config.js';
+import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor, lodges as lodgesCfg, paths } from '../config.js';
 import { issueAge } from '../queries.js';
 import { magicUrl } from '../links.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
 
-const AVATAR_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'avatars');
+const AVATAR_DIR = paths.avatars;
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
 const CAT_ICON = { housekeeping: '🧹', maintenance: '🔧', supplies: '📦', other: '📌' };
@@ -316,7 +315,20 @@ export function issuesBody({ issues, filters, lodgesList }) {
     ${filters.lodge || filters.category || filters.severity || filters.q ? '<a class="btn" href="/issues">Clear</a>' : ''}
   </form>
   <div class="card">${issuesTable(issues)}</div>
-  <p class="sub">Issues stay open until someone marks them resolved — on the dashboard or via the check-off link in a follow-up message.</p>`;
+  <p class="sub">Issues stay open until someone marks them resolved — on the dashboard or via the check-off link in a follow-up message.</p>
+  <details class="collapse">
+    <summary><span class="chev">▸</span> Bulk triage</summary>
+    <div class="card">
+      <form method="post" action="/issues/bulk-resolve" class="filters"
+            onsubmit="return confirm('Resolve every open issue first seen on or before this date? This is the pre-pilot clean-slate tool.')">
+        <label>Mark everything first seen on/before</label>
+        <input type="date" name="before" required
+               style="background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:9px;padding:6px 9px;font:inherit">
+        <button class="primary">Resolve them</button>
+      </form>
+      <p class="sub" style="margin:6px 0 0">Use once before the pilot to clear stale backlog; anything can be reopened from its issue page.</p>
+    </div>
+  </details>`;
 }
 
 
@@ -466,6 +478,40 @@ export function magicDoneBody({ issue, token }) {
     <p class="status-ok" style="font-size:16px">Marked done — thank you! It drops off the open list and next week's digest.</p>
     <form method="post" action="/r/${esc(token)}?undo=1"><button>↩ Undo — not actually done</button></form>
   </div>`;
+}
+
+/** First-run screen: upload the encrypted setup token + its passphrase. */
+export function setupBody({ error }) {
+  return `
+  <div style="max-width:520px;margin:36px auto;">
+    <h1>Welcome to FollowUp</h1>
+    <p class="sub">To get started, upload the setup token you were sent and enter its passphrase
+    (it arrives separately). The token carries the JotForm connection and coordinator contacts —
+    everything stays on this computer.</p>
+    ${error ? `<div class="flash" style="background:color-mix(in srgb, var(--critical) 12%, var(--surface));border-color:color-mix(in srgb, var(--critical) 40%, transparent);color:var(--critical)">✗ ${esc(error)}</div>` : ''}
+    <form method="post" action="/setup" class="card" style="display:block">
+      <p><label><b>Token file</b><br>
+        <input type="file" id="tokfile" accept=".token,.txt" style="margin-top:6px">
+      </label></p>
+      <p><label><b>…or paste the token text</b><br>
+        <textarea name="token" id="tok" rows="5" style="width:100%;margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:9px;padding:8px;font:12px/1.4 monospace" placeholder="FUTK1.…"></textarea>
+      </label></p>
+      <p><label><b>Passphrase</b><br>
+        <input type="password" name="passphrase" required style="margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:9px;padding:8px;width:100%">
+      </label></p>
+      <p style="margin-bottom:0"><button class="primary" style="font-size:15px;padding:10px 20px">Unlock &amp; start</button></p>
+    </form>
+    <p class="sub">Lost the token? Whoever runs FollowUp can make a new one with <code>npm run token</code>.</p>
+  </div>
+  <script>
+    document.getElementById('tokfile').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { document.getElementById('tok').value = r.result; };
+      r.readAsText(f);
+    });
+  </script>`;
 }
 
 export function digestBody({ names, selected, html }) {

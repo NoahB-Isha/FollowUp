@@ -2,7 +2,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { app, coordinators, paths, assignmentMatches, lodges } from './config.js';
 import { coverage, openIssues, issueAge } from './queries.js';
-import { today, weekStart, fmtDate, fmtWeek } from './util.js';
+import { today, weekStart, fmtDate, fmtWeek, isDirectRun } from './util.js';
 import { smtpConfigured, sendMail } from './mailer.js';
 import { magicUrl } from './links.js';
 
@@ -142,7 +142,7 @@ export async function runDigest({ send = false } = {}) {
   return { outDir, results };
 }
 
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
+if (isDirectRun(import.meta.url)) {
   const send = process.argv.includes('--send');
   runDigest({ send })
     .then(({ outDir, results }) => {

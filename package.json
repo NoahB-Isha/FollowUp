@@ -8,15 +8,22 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/app.js",
     "sync": "node --disable-warning=ExperimentalWarning src/sync.js",
     "serve": "node --disable-warning=ExperimentalWarning src/server.js",
     "digest": "node --disable-warning=ExperimentalWarning src/digest.js",
     "digest:send": "node --disable-warning=ExperimentalWarning src/digest.js --send",
     "warm": "node --disable-warning=ExperimentalWarning src/warm.js",
-    "llm:test": "node --disable-warning=ExperimentalWarning src/llm-test.js"
+    "llm:test": "node --disable-warning=ExperimentalWarning src/llm-test.js",
+    "token": "node scripts/make-token.mjs",
+    "build": "node scripts/build.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",
     "nodemailer": "^7.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "postject": "^1.0.0-alpha.6"
   }
 }

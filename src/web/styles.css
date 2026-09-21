@@ -384,3 +384,19 @@ td.desc a:hover { color: var(--accent); }
 }
 .empty { color: var(--muted); padding: 18px 0; text-align: center; }
 footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px; }
+
+/* Phone-width adjustments — coordinators will open this on mobiles */
+@media (max-width: 760px) {
+  header { padding: 8px 12px; gap: 10px; }
+  header nav { gap: 0; }
+  header nav a { padding: 5px 8px; }
+  main { padding: 16px 12px 48px; }
+  h1 { font-size: 21px; }
+  .lodgecards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  a.lodgecard { padding: 14px 14px; }
+  .coords { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 14px 6px; }
+  .avatar { width: 64px; height: 64px; font-size: 22px; }
+  .tile { min-width: 118px; padding: 11px 14px; }
+  .tile .value { font-size: 23px; }
+  .lodge-stats { gap: 14px; font-size: 14px; }
+}

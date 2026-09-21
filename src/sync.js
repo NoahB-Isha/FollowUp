@@ -4,7 +4,7 @@ import { getAllSubmissions } from './jotform.js';
 import { normalizeSubmission } from './normalize.js';
 import { extractIssues, isNotApplicable } from './extract.js';
 import { extractIssuesLLM, llmAvailable, llmModel } from './extract-llm.js';
-import { tokens, jaccard, normKey } from './util.js';
+import { tokens, jaccard, normKey, isDirectRun } from './util.js';
 import { warmup } from './photos.js';
 
 /**
@@ -168,7 +168,7 @@ export async function sync({ full = false, photos = true, llm = true } = {}) {
 }
 
 // CLI entry: `npm run sync` — flags: --full (refetch everything), --no-photos, --no-llm
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
+if (isDirectRun(import.meta.url)) {
   const full = process.argv.includes('--full');
   const photos = !process.argv.includes('--no-photos');
   const llm = !process.argv.includes('--no-llm');

@@ -15,5 +15,10 @@ data/
 node_modules/
 npm-debug.log*
 
+# Packaging outputs & caches; setup tokens carry secrets
+dist/
+.build-cache/
+*.token
+
 # macOS Finder droppings
 .DS_Store

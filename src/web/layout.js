@@ -1,4 +1,5 @@
 import { THEMES, MODES } from '../themes.js';
+import { app as appConfig } from '../config.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -44,7 +45,8 @@ export function page({ title, active, body, flash, theme = { scheme: 'lilac', mo
 ${flash ? `<div class="flash">${esc(flash)}</div>` : ''}
 ${body}
 </main>
-<footer>FollowUp runs entirely on this machine · data source: JotForm “Lodge Walkthrough Checklist”</footer>
+<footer>FollowUp runs entirely on this machine · data source: JotForm “Lodge Walkthrough Checklist”${appConfig.feedback?.email
+  ? ` · <a href="mailto:${esc(appConfig.feedback.email)}?subject=${encodeURIComponent('FollowUp feedback')}">💬 Send feedback</a>` : ''}</footer>
 </body>
 </html>`;
 }

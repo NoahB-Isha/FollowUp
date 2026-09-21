@@ -3,6 +3,8 @@
   "dashboardPort": 4820,
   "staleAfterDays": 10,
   "coverageWeeks": 6,
+  "syncIntervalHours": 6,
+  "feedback": { "email": "claude.itn@ishausa.org" },
   "questionMap": {
     "coordinator": "2",
     "walkDate": "3",

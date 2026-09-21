@@ -1,9 +1,10 @@
 import express from 'express';
 import { gzipSync, constants as zc } from 'node:zlib';
-import { readFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { app as appConfig, coordinators, lodges } from './config.js';
+import { app as appConfig, coordinators, lodges, paths, isConfigured, reloadConfig } from './config.js';
+import { webAsset } from './assets.js';
+import { readToken } from './token.js';
 import { dataVersion } from './db.js';
 import { sync } from './sync.js';
 import { ensureOriginal, ensureThumb } from './photos.js';
@@ -11,7 +12,7 @@ import {
   stats, coverage, openIssues, recentWalkthroughs,
   walkthroughDetail, setIssueStatus,
   lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
-  issueDetail, similarIssues,
+  issueDetail, similarIssues, bulkResolveBefore,
 } from './queries.js';
 import { verifyToken } from './links.js';
 import { buildThemeCss, THEMES, MODES } from './themes.js';
@@ -20,9 +21,8 @@ import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
 import { today, weekStart, addDays } from './util.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = express();
-server.use(express.urlencoded({ extended: false }));
+server.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 // ---------- Theme (scheme + light/dark mode), persisted in a cookie ----------
 server.use((req, res, next) => {
@@ -101,23 +101,62 @@ function cachedGet(handler) {
   };
 }
 
-// ---------- Static: CSS from memory with revalidation ----------
+// ---------- Static: CSS + fonts from memory (disk in dev, embedded when packaged) ----------
 // Theme tokens are generated per scheme × mode; the structural stylesheet follows.
-const CSS = buildThemeCss() + readFileSync(path.join(__dirname, 'web/styles.css'), 'utf8');
+const CSS = buildThemeCss() + webAsset('styles.css');
 server.get('/styles.css', (req, res) => {
   res.set('Cache-Control', 'no-cache'); // ETag (automatic) makes revalidation a 304
   res.type('text/css').send(CSS);
 });
 
-// Self-hosted fonts — no external requests from the browser, works offline.
-server.use('/fonts', express.static(path.join(__dirname, 'web/fonts'), {
-  maxAge: 365 * 24 * 3600 * 1000, immutable: true, fallthrough: false,
-}));
+const FONTS = new Map(); // lazy, immutable once loaded
+server.get('/fonts/:file', (req, res) => {
+  const file = path.basename(req.params.file);
+  if (!FONTS.has(file)) {
+    try { FONTS.set(file, webAsset(`fonts/${file}`)); } catch { FONTS.set(file, null); }
+  }
+  const buf = FONTS.get(file);
+  if (!buf) return res.status(404).end();
+  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.type('font/woff2').send(buf);
+});
 
-// Coordinator profile photos (optional) — drop <Name>.jpg into src/web/avatars.
-server.use('/avatars', express.static(path.join(__dirname, 'web/avatars'), {
-  maxAge: 24 * 3600 * 1000,
-}));
+// Coordinator profile photos (optional) — drop <Name>.jpg into the avatars folder.
+server.use('/avatars', express.static(paths.avatars, { maxAge: 24 * 3600 * 1000 }));
+
+// ---------- First-run setup: upload the encrypted token ----------
+server.use((req, res, next) => {
+  if (isConfigured()) return next();
+  if (req.path === '/setup' || req.path === '/styles.css' || req.path.startsWith('/fonts/')) return next();
+  res.redirect('/setup');
+});
+
+server.get('/setup', (req, res) => {
+  if (isConfigured()) return res.redirect('/');
+  res.send(page({ theme: req.theme, title: 'Setup', body: pages.setupBody({ error: null }) }));
+});
+
+server.post('/setup', async (req, res) => {
+  if (isConfigured()) return res.redirect('/');
+  try {
+    const payload = readToken(req.body.token || '', req.body.passphrase || '');
+    // Persist for future launches, then apply live.
+    const envText = Object.entries(payload.env)
+      .map(([k, v]) => `${k}=${String(v).includes(' ') ? JSON.stringify(v) : v}`).join('\n') + '\n';
+    writeFileSync(paths.env, envText, { mode: 0o600 });
+    if (payload.coordinatorsLocal) {
+      writeFileSync(path.join(paths.configDir, 'coordinators.local.json'),
+        JSON.stringify(payload.coordinatorsLocal, null, 2), { mode: 0o600 });
+    }
+    for (const [k, v] of Object.entries(payload.env)) process.env[k] = String(v);
+    reloadConfig();
+    rcache.clear();
+    import('./scheduler.js').then((m) => m.kickoffInitialSync()); // pull data in the background
+    res.redirect(`/?flash=${encodeURIComponent('Setup complete — first sync is running, refresh in a minute.')}`);
+  } catch (err) {
+    res.status(400).send(page({ theme: req.theme, title: 'Setup', body: pages.setupBody({ error: err.message }) }));
+  }
+});
 
 // ---------- HTML pages ----------
 
@@ -209,6 +248,16 @@ server.post('/sync', async (req, res) => {
   } catch (err) {
     res.redirect(`/?flash=${encodeURIComponent('Sync failed: ' + err.message)}`);
   }
+});
+
+// Bulk triage: close out everything first seen on/before a date (pre-pilot cleanup).
+server.post('/issues/bulk-resolve', (req, res) => {
+  const before = String(req.body.before || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(before)) {
+    return res.redirect(`/issues?flash=${encodeURIComponent('Pick a date first.')}`);
+  }
+  const n = bulkResolveBefore(before);
+  res.redirect(`/issues?flash=${encodeURIComponent(`Marked ${n} issue${n === 1 ? '' : 's'} (first seen on/before ${before}) as resolved.`)}`);
 });
 
 server.post('/issues/:id/status', (req, res) => {
