@@ -70,13 +70,19 @@ export const THEMES = {
 
 export const MODES = ['auto', 'light', 'dark'];
 
+// Brand wordmark colors — light modes only (dark falls back to --ink).
+const BRAND_LIGHT = { follow: '#1c4586', up: '#8e7cc3' };
+
 function vars(t, mode) {
+  const brand = mode === 'light'
+    ? `\n  --brand-follow: ${BRAND_LIGHT.follow}; --brand-up: ${BRAND_LIGHT.up};`
+    : `\n  --brand-follow: ${t.ink}; --brand-up: ${t.ink};`;
   return `color-scheme: ${mode};
   --page: ${t.page}; --surface: ${t.surface};
   --ink: ${t.ink}; --ink-2: ${t.ink2}; --muted: ${t.muted};
   --hairline: ${t.hairline}; --border: ${t.border};
   --accent: ${t.accent}; --accent-ink: ${t.accentInk}; --good-text: ${t.goodText};
-  --shadow-sm: ${t.shadowSm}; --shadow-md: ${t.shadowMd};`;
+  --shadow-sm: ${t.shadowSm}; --shadow-md: ${t.shadowMd};${brand}`;
 }
 
 /** Token CSS for every scheme × mode; mode "auto" follows prefers-color-scheme. */

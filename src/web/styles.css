@@ -57,6 +57,8 @@ header {
   z-index: 2;
 }
 header .brand { font-size: 18px; color: var(--ink); }
+header .brand .brand-follow { color: var(--brand-follow, var(--ink)); }
+header .brand .brand-up { color: var(--brand-up, var(--ink)); }
 header nav { display: flex; gap: 4px; }
 header nav a {
   color: var(--ink-2); padding: 5px 10px; border-radius: 8px;

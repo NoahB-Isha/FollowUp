@@ -32,7 +32,7 @@ export function page({ title, active, body, flash, theme = { scheme: 'sunrise', 
 </head>
 <body>
 <header>
-  <span class="brand">FollowUp</span>
+  <span class="brand"><span class="brand-follow">Follow</span><span class="brand-up">Up</span></span>
   <nav>${NAV.map(([href, label]) =>
     `<a href="${href}" ${active === href ? 'class="active"' : ''}>${label}</a>`).join('')}
   </nav>
