@@ -14,3 +14,6 @@ data/
 # Dependencies
 node_modules/
 npm-debug.log*
+
+# macOS Finder droppings
+.DS_Store
