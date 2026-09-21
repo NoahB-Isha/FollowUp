@@ -27,6 +27,10 @@ npm run serve               # dashboard at http://localhost:4820
    across walkthroughs: "fans dirty" reported two weeks in a row becomes one
    issue seen 2×, not two issues. Incremental and safe to re-run (cron it).
 2. **Dashboard** (`npm run serve`, localhost only) —
+   - **Completion**: form-usage metrics — walkthroughs and floor coverage per
+     week, per-coordinator consistency/completeness/submit-lag/photos, and
+     which form sections get skipped. The place to look before trusting any
+     cleanliness trend.
    - **Overview**: stat tiles, a lodge × floor **coverage grid** for the last 6
      weeks (who walked what, which floors are overdue or have *never* been
      walked), longest-open issues, recent walkthroughs.
@@ -59,7 +63,8 @@ npm run serve               # dashboard at http://localhost:4820
 | `.env` | JotForm API key, SMTP settings, optional dashboard token. **Never committed.** |
 | `config/app.json` | Form ID and the question-ID map (update if the form is restructured), staleness thresholds. |
 | `config/lodges.json` | The four lodges, floor → wing layout, and non-dorm wings (wellness office, sadhana room, film room) so they don't count as coverage gaps. |
-| `config/coordinators.json` | Coordinator names (must match the form dropdown), emails, optional `assignedLodges` to scope digests. |
+| `config/coordinators.json` | Coordinator names (must match the form dropdown), `assignedLodges` (dorm responsibility → task contacts, digest scope), `role: overall`, and `departments` (issue category → dept coordinators added to a task's contacts). Current assignments are data-derived guesses — correct them. |
+| `config/coordinators.local.json` | **Gitignored.** Real emails and WhatsApp numbers (with country code). Copy from `coordinators.local.example.json`. Follow-up buttons open WhatsApp (`wa.me`) with the message pre-filled — nothing is sent automatically; without a number, WhatsApp opens and the sender picks the chat. |
 
 ## Architecture & security
 

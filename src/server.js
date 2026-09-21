@@ -10,7 +10,7 @@ import { ensureOriginal, ensureThumb } from './photos.js';
 import {
   stats, coverage, openIssues, latestWalkDates, recentWalkthroughs,
   walkthroughDetail, setIssueStatus, assignIssue,
-  lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs,
+  lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
 } from './queries.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
@@ -143,6 +143,13 @@ server.get('/walkthroughs/:id', cachedGet((req, res) => {
   res.send(page({
     title: `${detail.walk.lodge} ${detail.walk.floor}`, active: '/walkthroughs',
     body: pages.walkthroughDetailBody({ ...detail, latestByUnit: latestWalkDates() }),
+  }));
+}));
+
+server.get('/completion', cachedGet((req, res) => {
+  res.send(page({
+    title: 'Form completion', active: '/completion',
+    body: pages.completionBody({ m: completionMetrics() }),
   }));
 }));
 

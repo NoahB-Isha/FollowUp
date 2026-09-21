@@ -1,6 +1,18 @@
 {
-  "_comment": "Copy to config/coordinators.local.json (gitignored) and fill in real addresses. Keys must match the 'name' fields in coordinators.json.",
+  "_comment": "Copy to config/coordinators.local.json (gitignored) and fill in real contact info. Keys must match the 'name' fields in coordinators.json. Phones are used for WhatsApp follow-up links — include country code (e.g. +1 931 555 0100).",
   "emails": {
+    "Diana": "",
+    "Jacob": "",
+    "Mora": "",
+    "Navneet": "",
+    "Nikki": "",
+    "Rob": "",
+    "Sjel": "",
+    "Thomas": "",
+    "Joe": "",
+    "Ramez": ""
+  },
+  "phones": {
     "Diana": "",
     "Jacob": "",
     "Mora": "",

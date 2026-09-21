@@ -1,6 +1,6 @@
 import { q, bumpDataVersion } from './db.js';
-import { app, coverageUnits, lodges as lodgesConfig } from './config.js';
-import { today, weekStart, addDays, daysBetween } from './util.js';
+import { app, coverageUnits, lodges as lodgesConfig, coordinators, wingInfo } from './config.js';
+import { today, weekStart, addDays, daysBetween, median } from './util.js';
 
 export function stats() {
   const open = q(`SELECT COUNT(*) n FROM issues WHERE status='open'`).get().n;
@@ -147,6 +147,112 @@ export function lodgeWalkthroughs(lodge, limit = 12) {
             (SELECT COUNT(*) FROM issue_sightings s WHERE s.walkthrough_id = w.id) issue_count
      FROM walkthroughs w WHERE w.lodge = ? ORDER BY walk_date DESC, submitted_at DESC LIMIT ?`
   ).all(lodge, limit);
+}
+
+/**
+ * Form-completion metrics: how thoroughly, consistently, and promptly the
+ * walkthrough form is being filled out. A walkthrough's completeness is the
+ * share of expected parts answered: the floor's inspectable wings (a wing
+ * marked N/A counts as answered — the coordinator responded) plus the six
+ * fixed sections. Submit lag = days between the reported walk date and the
+ * actual submission.
+ */
+export function completionMetrics() {
+  const sectionNames = Object.keys(app.questionMap.sections);
+  const walks = q(
+    `SELECT w.id, w.coordinator, w.lodge, w.floor, w.walk_date, w.submitted_at, w.comments,
+            (SELECT COUNT(*) FROM photos p WHERE p.walkthrough_id = w.id) photo_count
+     FROM walkthroughs w ORDER BY walk_date DESC, submitted_at DESC`
+  ).all();
+  const answeredByWalk = new Map();
+  for (const r of q(`SELECT walkthrough_id, area FROM area_reports`).all()) {
+    if (!answeredByWalk.has(r.walkthrough_id)) answeredByWalk.set(r.walkthrough_id, new Set());
+    answeredByWalk.get(r.walkthrough_id).add(r.area);
+  }
+
+  const perWalk = walks.map((w) => {
+    const answered = answeredByWalk.get(w.id) ?? new Set();
+    const wings = (lodgesConfig.floors[w.floor] ?? []).filter((x) => wingInfo(w.lodge, x).inspect);
+    const wingsDone = wings.filter((x) => answered.has(`Wing ${x}`)).length;
+    const sectionsDone = sectionNames.filter((s) => answered.has(s)).length;
+    const expected = wings.length + sectionNames.length;
+    const submittedDate = (w.submitted_at || '').slice(0, 10) || w.walk_date;
+    return {
+      ...w,
+      wingsDone, wingsExpected: wings.length,
+      sectionsDone, sectionsExpected: sectionNames.length,
+      completeness: expected ? (wingsDone + sectionsDone) / expected : 1,
+      lag: daysBetween(w.walk_date, submittedDate),
+      hasComments: !!w.comments,
+    };
+  });
+
+  // Weekly rollup over the coverage window.
+  const weeks = app.coverageWeeks;
+  const start = weekStart(addDays(today(), -7 * (weeks - 1)));
+  const totalUnits = coverageUnits().length;
+  const weekly = [];
+  for (let i = 0; i < weeks; i++) {
+    const ws = addDays(start, i * 7);
+    const inWeek = perWalk.filter((w) => weekStart(w.walk_date) === ws);
+    weekly.push({
+      week: ws,
+      walkthroughs: inWeek.length,
+      unitsCovered: new Set(inWeek.map((w) => `${w.lodge}|${w.floor}`)).size,
+      totalUnits,
+      coordinators: [...new Set(inWeek.map((w) => w.coordinator))],
+      avgCompleteness: inWeek.length
+        ? inWeek.reduce((s, w) => s + w.completeness, 0) / inWeek.length : null,
+    });
+  }
+
+  // Per-coordinator rollup — config order first, then any unexpected submitters.
+  const names = coordinators.coordinators.map((c) => c.name);
+  for (const w of perWalk) if (!names.includes(w.coordinator)) names.push(w.coordinator);
+  const currentWeek = weekStart(today());
+  const perCoordinator = names.map((name) => {
+    const mine = perWalk.filter((w) => w.coordinator === name);
+    if (!mine.length) return { name, n: 0 };
+    const first = mine[mine.length - 1].walk_date;
+    const weeksSpan = Math.floor(daysBetween(weekStart(first), currentWeek) / 7) + 1;
+    const weeksActive = new Set(mine.map((w) => weekStart(w.walk_date))).size;
+    return {
+      name,
+      n: mine.length,
+      lastWalked: mine[0].walk_date,
+      weeksActive,
+      weeksSpan,
+      avgCompleteness: mine.reduce((s, w) => s + w.completeness, 0) / mine.length,
+      medianLag: median(mine.map((w) => w.lag)),
+      avgPhotos: mine.reduce((s, w) => s + w.photo_count, 0) / mine.length,
+    };
+  });
+
+  // Which form parts get skipped.
+  const sectionRates = sectionNames.map((s) => ({
+    section: s,
+    filled: perWalk.filter((w) => (answeredByWalk.get(w.id) ?? new Set()).has(s)).length,
+    total: perWalk.length,
+  }));
+  const wingTotals = perWalk.reduce(
+    (acc, w) => ({ done: acc.done + w.wingsDone, expected: acc.expected + w.wingsExpected }),
+    { done: 0, expected: 0 }
+  );
+
+  return {
+    perWalk,
+    weekly,
+    perCoordinator,
+    sectionRates,
+    wingTotals,
+    summary: {
+      total: perWalk.length,
+      avgCompleteness: perWalk.length
+        ? perWalk.reduce((s, w) => s + w.completeness, 0) / perWalk.length : 0,
+      medianLag: median(perWalk.map((w) => w.lag)),
+      withPhotos: perWalk.filter((w) => w.photo_count > 0).length,
+    },
+  };
 }
 
 export function setIssueStatus(id, status, by) {

@@ -108,6 +108,16 @@ a.lodgecard:hover { border-color: var(--accent); text-decoration: none; }
 .pill.warn { color: var(--ink);       background: color-mix(in srgb, var(--warning) 22%, var(--surface)); }
 .pill.crit { color: var(--critical);  background: color-mix(in srgb, var(--critical) 13%, var(--surface)); }
 
+/* Inline meter bars — the number always accompanies the bar */
+.meter {
+  display: inline-block; width: 86px; height: 8px; border-radius: 4px;
+  background: var(--hairline); vertical-align: middle; margin-right: 7px; overflow: hidden;
+}
+.meter > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+
+.btn.wa { border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+.btn.wa:hover { border-color: var(--good-text); color: var(--good-text); }
+
 .status-ok   { color: var(--good-text); font-weight: 600; }
 .status-miss { color: var(--critical); font-weight: 600; }
 .age.old { color: var(--critical); }

@@ -1,5 +1,5 @@
 import { esc } from './layout.js';
-import { coordinators, emailFor } from '../config.js';
+import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor } from '../config.js';
 import { issueAge } from '../queries.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
 
@@ -21,25 +21,34 @@ function whereLabel(i) {
   return `<b>${esc(i.lodge)}</b> · ${esc(floorLabel(i.floor))} · ${esc(i.area)}`;
 }
 
-function mailto(to, subject, body) {
-  // Address stays unencoded (mail clients dislike %40); subject/body are encoded.
-  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+/** WhatsApp deep link. With no number on file it still opens WhatsApp with the message ready — the sender picks the chat. */
+function waHref(name, text) {
+  const digits = (phoneFor(name) || '').replace(/\D/g, '');
+  const t = encodeURIComponent(text);
+  return digits ? `https://wa.me/${digits}?text=${t}` : `https://wa.me/?text=${t}`;
 }
 
-/** Pre-filled email for nudging on an issue — goes to the assignee if set. */
-function issueFollowUpHref(i) {
+function issueMessage(i) {
   const age = issueAge(i);
-  const to = i.assignee ? emailFor(i.assignee) : '';
-  const subject = `Follow up: ${i.lodge} ${floorLabel(i.floor)} — ${i.area}`;
-  const body = [
+  return [
+    `${i.lodge} ${floorLabel(i.floor)} — ${i.area}`,
     `Issue: ${i.description}`,
-    `Where: ${i.lodge}, ${floorLabel(i.floor)}, ${i.area}`,
-    `Type: ${CAT_LABEL[i.category] || i.category}${i.severity === 'high' ? ' (high priority)' : ''}`,
+    `Type: ${CAT_LABEL[i.category] || i.category}${i.severity === 'high' ? ' (HIGH priority)' : ''}`,
     `Open for ${age} day${age === 1 ? '' : 's'} — first seen ${i.first_seen}, reported ${i.occurrences}×`,
     '',
-    'Please take a look and reply when it’s handled.',
+    'Please take a look and reply here when it’s handled. 🙏',
   ].join('\n');
-  return mailto(to, subject, body);
+}
+
+/** One WhatsApp button per responsible contact (lodge owner / assignee + department). */
+function contactButtons(i) {
+  const msg = issueMessage(i);
+  return contactsForIssue(i).map((name) =>
+    `<a class="btn wa" target="_blank" rel="noreferrer" href="${waHref(name, msg)}"
+        title="${phoneFor(name)
+          ? `WhatsApp ${esc(name)} about this`
+          : `No number on file for ${esc(name)} — WhatsApp opens with the message ready; pick their chat`}">💬 ${esc(name)}</a>`
+  ).join(' ');
 }
 
 function ageText(i) {
@@ -76,7 +85,7 @@ function issueActions(issue) {
         <option value="">unassigned</option>${opts}
       </select>
     </form>
-    <a class="btn" href="${issueFollowUpHref(issue)}" title="Open a pre-filled follow-up email${issue.assignee ? ` to ${esc(issue.assignee)}` : ' (pick the recipient in your mail app)'}">✉ Follow up</a>
+    ${contactButtons(issue)}
     ${resolveForms(issue)}
     <form class="inline" method="post" action="/issues/${issue.id}/status">
       <input type="hidden" name="status" value="dismissed"><button title="Not actionable / duplicate">✕</button>
@@ -108,7 +117,7 @@ export function longestOpenTable(issues) {
       <td class="desc">${esc(i.description)}${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
       <td class="nowrap">${CAT_LABEL[i.category] || esc(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
       <td class="nowrap">
-        <a class="btn" href="${issueFollowUpHref(i)}" title="Open a pre-filled follow-up email">✉ Follow up</a>
+        ${contactButtons(i)}
         ${resolveForms(i)}
       </td>
     </tr>`).join('')}
@@ -125,12 +134,18 @@ function lodgeCard(h) {
   const floors = h.floors.map((f) =>
     `${f.floor === 'First' ? '1st' : '2nd'}: ${f.lastWalked ? `${fmtDate(f.lastWalked)}${f.staleDays > 10 ? ' ⚠' : ''}` : 'never walked'}`
   ).join(' · ');
+  const owners = lodgeOwnersFor(h.lodge).join(', ');
   return `<a class="lodgecard" href="/lodges/${encodeURIComponent(h.lodge)}">
     <div class="lc-top"><span class="lc-name">${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
-    ${h.label ? `<div class="lc-label">${esc(h.label)}</div>` : ''}
+    <div class="lc-label">${esc([h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · '))}</div>
     <div class="lc-nums">${h.open} open issue${h.open === 1 ? '' : 's'}${h.high ? ` · <b class="bad">${h.high} high priority</b>` : ''}</div>
     <div class="lc-floors">Last walked — ${floors}</div>
   </a>`;
+}
+
+function responsibilityLabel(c) {
+  if (c.role === 'overall') return 'All lodges (overall)';
+  return (c.assignedLodges || []).join(', ') || '—';
 }
 
 function weeklyWalkTable(weekly) {
@@ -140,17 +155,18 @@ function weeklyWalkTable(weekly) {
     const what = done
       ? walks.map((w) => `<a href="/walkthroughs/${esc(w.id)}">${esc(w.lodge)} ${w.floor === 'First' ? '1st' : '2nd'} (${fmtDate(w.walk_date)})</a>`).join(', ')
       : '<span class="muted">—</span>';
-    const email = emailFor(c.name);
-    const reminder = mailto(email,
-      `Walkthrough reminder — week of ${fmtWeek(weekly.weekStart)}`,
-      `Hi ${c.name},\n\nFriendly reminder to complete your lodge walkthrough this week and submit the checklist form.\n\nThank you!`);
+    const scope = c.role === 'overall' ? '' : (c.assignedLodges || []).join(' and ');
+    const reminder = waHref(c.name,
+      `Hi ${c.name} — friendly reminder to complete your lodge walkthrough${scope ? ` for ${scope}` : ''} this week (${fmtWeek(weekly.weekStart)}) and submit the checklist form. Thank you! 🙏`);
     const action = done
       ? ''
-      : email
-        ? `<a class="btn" href="${reminder}" title="Open a pre-filled reminder email to ${esc(c.name)}">✉ Follow up</a>`
-        : '<span class="muted" title="Add their address to config/coordinators.local.json">no email on file</span>';
+      : `<a class="btn wa" target="_blank" rel="noreferrer" href="${reminder}"
+           title="${phoneFor(c.name)
+             ? `WhatsApp ${esc(c.name)} a reminder`
+             : `No number on file for ${esc(c.name)} — WhatsApp opens with the reminder ready; pick their chat`}">💬 Follow up</a>`;
     return `<tr>
       <td class="nowrap"><b>${esc(c.name)}</b></td>
+      <td class="nowrap muted">${esc(responsibilityLabel(c))}</td>
       <td class="nowrap">${done
         ? `<span class="status-ok">✓ Completed${walks.length > 1 ? ` ×${walks.length}` : ''}</span>`
         : `<span class="status-miss">✗ Not yet</span>`}</td>
@@ -159,7 +175,7 @@ function weeklyWalkTable(weekly) {
     </tr>`;
   }).join('');
   return `<table class="data">
-    <tr><th>Coordinator</th><th>This week</th><th>Walked</th><th></th></tr>${rows}
+    <tr><th>Coordinator</th><th>Responsible for</th><th>This week</th><th>Walked</th><th></th></tr>${rows}
   </table>`;
 }
 
@@ -221,7 +237,7 @@ export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks }) {
   return `
   <p class="crumb"><a href="/">← Overview</a></p>
   <h1>${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
-  <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}${health.open} open issue${health.open === 1 ? '' : 's'}${health.high ? ` · ${health.high} high priority` : ''}</p>
+  <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}coordinator${lodgeOwnersFor(health.lodge).length === 1 ? '' : 's'}: ${esc(lodgeOwnersFor(health.lodge).join(', ') || '—')} · ${health.open} open issue${health.open === 1 ? '' : 's'}${health.high ? ` · ${health.high} high priority` : ''}</p>
 
   ${floorSections}
 
@@ -309,6 +325,85 @@ export function walkthroughDetailBody({ walk, areas, photos, sightings, latestBy
       return `<a href="/photo?u=${u}" target="_blank"><img loading="lazy" decoding="async" width="132" height="132" src="/photo?u=${u}&s=t" alt="walkthrough photo"></a>`;
     }).join('')}
   </div></div>` : ''}`;
+}
+
+function meter(fraction, text) {
+  const pct = Math.round(fraction * 100);
+  return `<span class="meter" role="img" aria-label="${pct}%"><span style="width:${pct}%"></span></span>${text ?? `${pct}%`}`;
+}
+
+export function completionBody({ m }) {
+  const pct = (x) => `${Math.round(x * 100)}%`;
+  const lagChip = (d) =>
+    d == null ? '—' : d <= 1 ? `${d}d` : `<span class="${d > 3 ? 'status-miss' : ''}" title="${d > 3 ? 'Large gap between walk date and submission — backdated or late entry' : ''}">${d}d</span>`;
+
+  const weeklyRows = [...m.weekly].reverse().map((w) => `<tr>
+    <td class="nowrap">${esc(fmtWeek(w.week))}</td>
+    <td class="num">${w.walkthroughs}</td>
+    <td class="nowrap">${meter(w.unitsCovered / w.totalUnits, `${w.unitsCovered}/${w.totalUnits} floors`)}</td>
+    <td class="num">${w.avgCompleteness == null ? '—' : pct(w.avgCompleteness)}</td>
+    <td>${w.coordinators.map(esc).join(', ') || '<span class="muted">—</span>'}</td>
+  </tr>`).join('');
+
+  const coordRows = m.perCoordinator.map((c) => {
+    const cfg = coordinators.coordinators.find((x) => x.name === c.name);
+    const resp = cfg ? responsibilityLabel(cfg) : '—';
+    if (!c.n) {
+      return `<tr><td class="nowrap"><b>${esc(c.name)}</b></td><td class="nowrap muted">${esc(resp)}</td>
+        <td class="num">0</td><td colspan="4" class="muted">never submitted</td><td></td></tr>`;
+    }
+    return `<tr>
+      <td class="nowrap"><b>${esc(c.name)}</b></td>
+      <td class="nowrap muted">${esc(resp)}</td>
+      <td class="num">${c.n}</td>
+      <td class="nowrap">${meter(c.weeksActive / c.weeksSpan, `${c.weeksActive}/${c.weeksSpan} weeks`)}</td>
+      <td class="num">${pct(c.avgCompleteness)}</td>
+      <td class="num">${lagChip(c.medianLag)}</td>
+      <td class="num">${c.avgPhotos.toFixed(0)}</td>
+      <td class="num">${fmtDate(c.lastWalked)}</td>
+    </tr>`;
+  }).join('');
+
+  const sectionRows = m.sectionRates.map((s) => `<tr>
+    <td class="nowrap">${esc(s.section)}</td>
+    <td class="nowrap">${meter(s.total ? s.filled / s.total : 0)}</td>
+    <td class="num">${s.filled}/${s.total}</td>
+  </tr>`).join('');
+
+  return `
+  <h1>Form completion</h1>
+  <p class="sub">How consistently and thoroughly the walkthrough form is being used — worth trusting before any cleanliness trend.</p>
+
+  <div class="tiles">
+    <div class="tile"><div class="value">${m.summary.total}</div><div class="label">walkthroughs total</div></div>
+    <div class="tile"><div class="value">${pct(m.summary.avgCompleteness)}</div><div class="label">avg form completeness</div></div>
+    <div class="tile"><div class="value">${m.summary.medianLag}d</div><div class="label">median submit lag</div></div>
+    <div class="tile"><div class="value">${m.summary.withPhotos}/${m.summary.total}</div><div class="label">with photos</div></div>
+  </div>
+
+  <h2>By week</h2>
+  <div class="card"><table class="data">
+    <tr><th>Week</th><th>Walkthroughs</th><th>Floor coverage</th><th>Avg completeness</th><th>Who walked</th></tr>
+    ${weeklyRows}
+  </table></div>
+
+  <h2>By coordinator</h2>
+  <div class="card"><table class="data">
+    <tr><th>Coordinator</th><th>Responsible for</th><th>Walks</th><th>Weekly consistency</th><th>Avg completeness</th><th>Median submit lag</th><th>Avg photos</th><th>Last walked</th></tr>
+    ${coordRows}
+  </table></div>
+
+  <h2>Which form sections get filled in</h2>
+  <div class="card"><table class="data">
+    <tr><th>Section</th><th>Fill rate</th><th></th></tr>
+    ${sectionRows}
+    <tr><td class="nowrap"><b>Wings (all)</b></td>
+      <td class="nowrap">${meter(m.wingTotals.expected ? m.wingTotals.done / m.wingTotals.expected : 0)}</td>
+      <td class="num">${m.wingTotals.done}/${m.wingTotals.expected}</td></tr>
+  </table></div>
+
+  <p class="sub">Completeness = answered wings + answered sections ÷ expected for that floor (a wing noted “N/A / locked” counts as answered; non-dorm wings are excluded).
+  Weekly consistency = weeks with ≥1 submission since that person's first walkthrough.</p>`;
 }
 
 export function digestBody({ names, selected, html }) {

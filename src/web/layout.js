@@ -5,6 +5,7 @@ const NAV = [
   ['/', 'Overview'],
   ['/issues', 'Issues'],
   ['/walkthroughs', 'Walkthroughs'],
+  ['/completion', 'Completion'],
   ['/digest', 'Digest preview'],
 ];
 

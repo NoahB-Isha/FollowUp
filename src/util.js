@@ -46,6 +46,13 @@ export function fmtWeek(mondayStr) {
   return `${fmtDate(mondayStr)}–${fmtDate(addDays(mondayStr, 6))}`;
 }
 
+export function median(nums) {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
 const STOPWORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'is', 'are', 'be',
   'it', 'its', 'this', 'that', 'with', 'from', 'at', 'by', 'all', 'has', 'have',
