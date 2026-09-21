@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { app, coordinators, paths, assignmentMatches } from './config.js';
+import { app, coordinators, paths, assignmentMatches, lodges } from './config.js';
 import { coverage, openIssues, issueAge } from './queries.js';
 import { today, weekStart, fmtDate, fmtWeek } from './util.js';
 import { smtpConfigured, sendMail } from './mailer.js';
@@ -41,7 +41,7 @@ function issueGroup(label, list, color) {
 function lodgeSection(lodge, issues, newSince) {
   const fresh = issues.filter((i) => i.first_seen >= newSince);
   const ongoing = issues.filter((i) => i.first_seen < newSince);
-  return `<h3 style="margin:22px 0 2px;font-size:16px;">${esc(lodge)} — ${issues.length} open</h3>
+  return `<h3 style="margin:22px 0 2px;font-size:16px;">${lodges.icons?.[lodge] ?? ''} ${esc(lodge)} — ${issues.length} open</h3>
     ${issueGroup('New this week', fresh, '#0b0b0b')}
     ${issueGroup('Ongoing', ongoing, '#52514e')}`;
 }

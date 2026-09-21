@@ -119,6 +119,7 @@ server.get('/lodges/:lodge', cachedGet((req, res) => {
       latestByUnit: latestWalkDates(),
       floorWalks: lodgeFloorWalks(health.lodge),
       walks: lodgeWalkthroughs(health.lodge),
+      cov: coverage(),
     }),
     flash: req.query.flash,
   }));

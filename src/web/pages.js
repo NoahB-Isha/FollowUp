@@ -1,5 +1,5 @@
 import { esc } from './layout.js';
-import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor } from '../config.js';
+import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor, lodges as lodgesCfg } from '../config.js';
 import { issueAge } from '../queries.js';
 import { magicUrl } from '../links.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
@@ -14,6 +14,10 @@ function catBadge(category) {
 
 function floorLabel(floor) {
   return floor === 'First' ? 'First floor' : floor === 'Second' ? 'Second floor' : `${floor} floor`;
+}
+
+function lodgeIcon(lodge) {
+  return lodgesCfg.icons?.[lodge] ?? '🏠';
 }
 
 function whereLabel(i) {
@@ -53,12 +57,14 @@ function waTitle(name) {
  * links straight to their WhatsApp; several expand into per-person links.
  */
 function followUpButton(contacts, msg) {
+  // ✳ marks contacts with no WhatsApp number on file (config/coordinators.local.json):
+  // the link still opens WhatsApp with the message ready, but can't pick the chat itself.
   if (contacts.length <= 1) {
     const name = contacts[0] || '';
-    return `<a class="btn-followup" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up</a>`;
+    return `<a class="btn-followup" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`;
   }
   const links = contacts.map((name) =>
-    `<a target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">💬 ${esc(name)}</a>`).join('');
+    `<a class="${phoneFor(name) ? '' : 'nonum'}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">💬 ${esc(name)}${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`).join('');
   return `<details class="fu">
     <summary title="Follow up via WhatsApp — ${contacts.map(esc).join(', ')}">${SEND_ICON} Follow up <span class="caret">▾</span></summary>
     <div class="fu-menu">${links}</div>
@@ -105,11 +111,11 @@ export function issuesTable(issues, latestByUnit, { areaOnly = false } = {}) {
   return `<table class="data">
     <tr><th>Where</th><th>Issue</th><th></th><th>First seen</th><th>Contact / act</th></tr>
     ${issues.map((i) => `<tr>
-      <td class="nowrap">${areaOnly ? `<b>${esc(i.area)}</b>` : whereLabel(i)}</td>
+      <td class="where">${areaOnly ? `<b>${esc(i.area)}</b>` : whereLabel(i)}</td>
       <td class="desc"><a href="/issue/${i.id}" title="History & similar issues">${esc(i.description)}</a></td>
       <td class="chips">${chips(i, latestByUnit)}</td>
       <td class="num">${fmtDate(i.first_seen)}</td>
-      <td class="nowrap">${issueActions(i)}</td>
+      <td><div class="actions">${issueActions(i)}</div></td>
     </tr>`).join('')}
   </table>`;
 }
@@ -120,13 +126,13 @@ export function longestOpenTable(issues) {
   return `<table class="data">
     <tr><th>Where</th><th>Issue</th><th>Type &amp; age</th><th>Act</th></tr>
     ${issues.map((i) => `<tr>
-      <td class="nowrap">${whereLabel(i)}</td>
+      <td class="where">${whereLabel(i)}</td>
       <td class="desc"><a href="/issue/${i.id}" title="History & similar issues">${esc(i.description)}</a>${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
       <td class="nowrap">${catBadge(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
-      <td class="nowrap">
+      <td><div class="actions">
         ${followUpButton(contactsForIssue(i), issueMessage(i))}
         ${resolveForms(i)}
-      </td>
+      </div></td>
     </tr>`).join('')}
   </table>`;
 }
@@ -143,7 +149,7 @@ function lodgeCard(h) {
   ).join(' · ');
   const owners = lodgeOwnersFor(h.lodge).join(', ');
   return `<a class="lodgecard" href="/lodges/${encodeURIComponent(h.lodge)}">
-    <div class="lc-top"><span class="lc-name">${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
+    <div class="lc-top"><span class="lc-name"><span class="lc-icon">${lodgeIcon(h.lodge)}</span> ${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
     <div class="lc-label">${esc([h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · '))}</div>
     <div class="lc-nums">${h.open} open issue${h.open === 1 ? '' : 's'}${h.high ? ` · <b class="bad">${h.high} high priority</b>` : ''}</div>
     <div class="lc-floors">Last walked — ${floors}</div>
@@ -200,7 +206,7 @@ export function coverageGrid(cov) {
       return `<td><span class="cell gap">—</span></td>`;
     }).join('');
     return `<tr>
-      <td class="unit"><a href="/lodges/${encodeURIComponent(u.lodge)}">${esc(u.lodge)}</a> · ${esc(u.floor)} <span class="use-note">${esc(u.wings.join(' '))}</span></td>
+      <td class="unit">${lodgeIcon(u.lodge)} <a href="/lodges/${encodeURIComponent(u.lodge)}">${esc(u.lodge)}</a> · ${esc(u.floor)} <span class="use-note">${esc(u.wings.join(' '))}</span></td>
       ${cells}
       <td class="num" title="days since last walkthrough">${u.staleDays == null ? '<span class="cell never">✗ never walked</span>' : `${u.staleDays}d ago`}</td>
     </tr>`;
@@ -225,7 +231,7 @@ export function overviewBody({ s, health, weekly, longest }) {
   <div class="card">${longestOpenTable(longest)}</div>`;
 }
 
-export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks }) {
+export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks, cov }) {
   const byFloor = { First: [], Second: [] };
   for (const i of issues) (byFloor[i.floor] ??= []).push(i);
 
@@ -240,10 +246,19 @@ export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks }) {
     <div class="card">${issuesTable(list, latestByUnit, { areaOnly: true })}</div>`;
   }).join('');
 
+  const lodgeUnits = cov.units.filter((u) => u.lodge === health.lodge);
+
   return `
   <p class="crumb"><a href="/">← Overview</a></p>
-  <h1>${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
-  <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}coordinator${lodgeOwnersFor(health.lodge).length === 1 ? '' : 's'}: ${esc(lodgeOwnersFor(health.lodge).join(', ') || '—')} · ${health.open} open issue${health.open === 1 ? '' : 's'}${health.high ? ` · ${health.high} high priority` : ''}</p>
+  <h1>${lodgeIcon(health.lodge)} ${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
+  <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}coordinator${lodgeOwnersFor(health.lodge).length === 1 ? '' : 's'}: ${esc(lodgeOwnersFor(health.lodge).join(', ') || '—')}</p>
+  <p class="lodge-stats">
+    <span><b>${health.open}</b> open issue${health.open === 1 ? '' : 's'}</span>
+    <span class="${health.high ? 'is-bad' : ''}"><b>${health.high}</b> high priority</span>
+  </p>
+
+  <h2>Walkthroughs — last ${cov.weekStarts.length} weeks</h2>
+  <div class="card">${coverageGrid({ weekStarts: cov.weekStarts, units: lodgeUnits })}</div>
 
   ${floorSections}
 

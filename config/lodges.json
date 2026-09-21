@@ -5,6 +5,12 @@
     "Hickory": "Men's dorm",
     "Magnolia": "Women's dorm"
   },
+  "icons": {
+    "Hickory": "🌰",
+    "Maple": "🍁",
+    "Magnolia": "🌸",
+    "Poplar": "🌳"
+  },
   "floors": {
     "First": ["A", "B", "C", "D"],
     "Second": ["E", "F", "G", "H"]

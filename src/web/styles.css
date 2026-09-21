@@ -165,6 +165,15 @@ a.lodgecard:hover {
 
 .status-ok   { color: var(--good-text); font-weight: 700; }
 .status-miss { color: var(--critical); font-weight: 700; }
+
+/* Lodge page header stats line */
+.lodge-stats { display: flex; gap: 18px; font-size: 16px; margin: -6px 0 18px; }
+.lodge-stats b { font-size: 21px; font-family: var(--font-display); }
+.lodge-stats .is-bad, .lodge-stats .is-bad b { color: var(--critical); }
+
+.lc-icon { font-size: 17px; }
+sup.nonum { font-size: 9px; opacity: 0.85; margin-left: 1px; }
+.fu-menu a.nonum { border-style: dashed; }
 .age.old { color: var(--critical); }
 .muted { color: var(--muted); }
 .crumb { margin: 2px 0 10px; }
@@ -190,9 +199,12 @@ table.data tr:last-child td { border-bottom: none; }
 table.data tr:has(td):hover { background: color-mix(in srgb, var(--warning) 7%, transparent); }
 table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 table.data td.nowrap { white-space: nowrap; }
-table.data td.desc { min-width: 240px; }
-td.chips { min-width: 170px; }
+table.data td.desc { min-width: 180px; }
+table.data td.where { min-width: 110px; max-width: 190px; } /* wraps instead of forcing the card wide */
+td.chips { min-width: 140px; }
 td.chips .chip { margin: 1px 2px 1px 0; }
+/* Action buttons wrap inside their cell rather than overflowing the card */
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 150px; }
 
 /* Coverage grid */
 .covgrid td { text-align: center; }
