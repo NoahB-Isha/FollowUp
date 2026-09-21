@@ -120,16 +120,16 @@ h2 { font-size: 18px; margin: 28px 0 10px; }
 /* Dormitory health cards */
 .lodgecards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
   margin-bottom: 8px;
 }
 a.lodgecard {
   display: block;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 15px 17px;
+  border-radius: 16px;
+  padding: 20px 22px;
   color: var(--ink);
   box-shadow: var(--shadow-sm);
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
@@ -140,12 +140,12 @@ a.lodgecard:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   text-decoration: none;
 }
-.lc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.lc-name { font-size: 18px; }
-.lc-label { color: var(--muted); font-size: 12px; margin-top: 1px; }
-.lc-nums { font-size: 13px; margin: 8px 0 3px; }
+.lc-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lc-name { font-size: 19px; }
+.lc-label { color: var(--muted); font-size: 12.5px; margin-top: 5px; }
+.lc-nums { font-size: 14px; margin: 12px 0 6px; }
 .lc-nums b.bad { color: var(--critical); }
-.lc-floors { color: var(--ink-2); font-size: 12px; }
+.lc-floors { color: var(--ink-2); font-size: 12.5px; line-height: 1.55; }
 
 /* Status pills — color always paired with a glyph + label */
 .pill {
@@ -289,13 +289,12 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
 
 /* Coordinator bubbles ("This week") */
 .coords {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px 26px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 18px 8px;
   padding: 10px 0 6px;
 }
-.coord { text-align: center; width: 132px; }
+.coord { text-align: center; }
 .avatar {
   width: 84px; height: 84px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
