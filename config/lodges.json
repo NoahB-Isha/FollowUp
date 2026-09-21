@@ -11,12 +11,6 @@
     "Magnolia": "🌸",
     "Poplar": "🌳"
   },
-  "colors": {
-    "Hickory": "#9c6b3c",
-    "Maple": "#d24735",
-    "Magnolia": "#e87ba4",
-    "Poplar": "#3f9142"
-  },
   "floors": {
     "First": ["A", "B", "C", "D"],
     "Second": ["E", "F", "G", "H"]

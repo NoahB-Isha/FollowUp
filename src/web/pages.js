@@ -32,9 +32,8 @@ const DORM_SVG = {
 const DORM_FALLBACK_SVG = `<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>`;
 
 function dormIcon(lodge, size = 26) {
-  const color = lodgesCfg.colors?.[lodge] ?? 'currentColor';
   return `<svg class="dorm-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
-    stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
     aria-hidden="true">${DORM_SVG[lodge] ?? DORM_FALLBACK_SVG}</svg>`;
 }
 
