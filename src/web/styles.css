@@ -1,6 +1,23 @@
 /* FollowUp dashboard — tokens follow the reference dataviz palette.
    Status is never color-alone: every status cell/chip pairs color with a glyph + label. */
 
+/* Self-hosted fonts (src/web/fonts — no external requests) */
+@font-face {
+  font-family: 'Fredericka the Great';
+  src: url('/fonts/fredericka-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Kaisei Decol';
+  src: url('/fonts/kaisei-decol-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Kaisei Decol';
+  src: url('/fonts/kaisei-decol-700.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --page: #f9f9f7;
@@ -37,7 +54,14 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 14.5px/1.5 'Kaisei Decol', system-ui, -apple-system, "Segoe UI", serif;
+}
+
+/* Display face for headings and hero numbers */
+h1, h2, header .brand, .lc-name, .tile .value {
+  font-family: 'Fredericka the Great', 'Kaisei Decol', serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -51,15 +75,15 @@ header {
   gap: 20px;
   flex-wrap: wrap;
 }
-header .brand { font-weight: 650; font-size: 15px; color: var(--ink); }
+header .brand { font-size: 19px; color: var(--ink); }
 header nav { display: flex; gap: 14px; }
 header nav a { color: var(--ink-2); padding: 4px 2px; }
 header nav a.active { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); }
 header .spacer { flex: 1; }
 
 main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
-h1 { font-size: 20px; margin: 6px 0 14px; }
-h2 { font-size: 16px; margin: 26px 0 10px; }
+h1 { font-size: 27px; margin: 6px 0 14px; }
+h2 { font-size: 20px; margin: 26px 0 10px; }
 .sub { color: var(--ink-2); margin: -8px 0 16px; }
 
 /* Stat tiles */
@@ -71,7 +95,7 @@ h2 { font-size: 16px; margin: 26px 0 10px; }
   padding: 12px 16px;
   min-width: 140px;
 }
-.tile .value { font-size: 28px; font-weight: 600; }
+.tile .value { font-size: 32px; }
 .tile .value.bad { color: var(--critical); }
 .tile .value.ok { color: var(--good-text); }
 .tile .label { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
@@ -93,7 +117,7 @@ a.lodgecard {
 }
 a.lodgecard:hover { border-color: var(--accent); text-decoration: none; }
 .lc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.lc-name { font-weight: 650; font-size: 16px; }
+.lc-name { font-size: 20px; }
 .lc-label { color: var(--muted); font-size: 12px; margin-top: 1px; }
 .lc-nums { font-size: 13px; margin: 7px 0 3px; }
 .lc-nums b.bad { color: var(--critical); }

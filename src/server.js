@@ -85,6 +85,11 @@ server.get('/styles.css', (req, res) => {
   res.type('text/css').send(CSS);
 });
 
+// Self-hosted fonts — no external requests from the browser, works offline.
+server.use('/fonts', express.static(path.join(__dirname, 'web/fonts'), {
+  maxAge: 365 * 24 * 3600 * 1000, immutable: true, fallthrough: false,
+}));
+
 // ---------- HTML pages ----------
 
 server.get('/', cachedGet((req, res) => {
