@@ -1,25 +1,24 @@
 /* FollowUp dashboard — tokens follow the reference dataviz palette.
    Status is never color-alone: every status cell/chip pairs color with a glyph + label. */
 
-/* Self-hosted fonts (src/web/fonts — no external requests) */
+/* Self-hosted fonts (src/web/fonts — no external requests).
+   To try different fonts: drop woff2 files here, add @font-face, and point
+   --font-body / --font-display at them. Nothing else needs touching. */
 @font-face {
-  font-family: 'Fredericka the Great';
-  src: url('/fonts/fredericka-400.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: swap;
+  font-family: 'Figtree';
+  src: url('/fonts/figtree-var.woff2') format('woff2');
+  font-weight: 300 900; font-style: normal; font-display: swap;
 }
 @font-face {
-  font-family: 'Kaisei Decol';
-  src: url('/fonts/kaisei-decol-400.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Kaisei Decol';
-  src: url('/fonts/kaisei-decol-700.woff2') format('woff2');
-  font-weight: 700; font-style: normal; font-display: swap;
+  font-family: 'Lora';
+  src: url('/fonts/lora-600.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
 }
 
 :root {
   color-scheme: light;
+  --font-body: 'Figtree', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: 'Lora', 'Figtree', Georgia, serif;
   --page: #f9f9f7;
   --surface: #fcfcfb;
   --ink: #0b0b0b;
@@ -54,14 +53,14 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font: 14.5px/1.5 'Kaisei Decol', system-ui, -apple-system, "Segoe UI", serif;
+  font: 14px/1.5 var(--font-body);
 }
 
 /* Display face for headings and hero numbers */
 h1, h2, header .brand, .lc-name, .tile .value {
-  font-family: 'Fredericka the Great', 'Kaisei Decol', serif;
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.005em;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -75,15 +74,15 @@ header {
   gap: 20px;
   flex-wrap: wrap;
 }
-header .brand { font-size: 19px; color: var(--ink); }
+header .brand { font-size: 17px; color: var(--ink); }
 header nav { display: flex; gap: 14px; }
 header nav a { color: var(--ink-2); padding: 4px 2px; }
 header nav a.active { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); }
 header .spacer { flex: 1; }
 
 main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
-h1 { font-size: 27px; margin: 6px 0 14px; }
-h2 { font-size: 20px; margin: 26px 0 10px; }
+h1 { font-size: 23px; margin: 6px 0 14px; }
+h2 { font-size: 17.5px; margin: 26px 0 10px; }
 .sub { color: var(--ink-2); margin: -8px 0 16px; }
 
 /* Stat tiles */
@@ -95,7 +94,7 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
   padding: 12px 16px;
   min-width: 140px;
 }
-.tile .value { font-size: 32px; }
+.tile .value { font-size: 27px; }
 .tile .value.bad { color: var(--critical); }
 .tile .value.ok { color: var(--good-text); }
 .tile .label { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
@@ -117,7 +116,7 @@ a.lodgecard {
 }
 a.lodgecard:hover { border-color: var(--accent); text-decoration: none; }
 .lc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.lc-name { font-size: 20px; }
+.lc-name { font-size: 17px; }
 .lc-label { color: var(--muted); font-size: 12px; margin-top: 1px; }
 .lc-nums { font-size: 13px; margin: 7px 0 3px; }
 .lc-nums b.bad { color: var(--critical); }
