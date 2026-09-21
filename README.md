@@ -35,10 +35,10 @@ npm run serve               # dashboard at http://localhost:4820
      weeks (who walked what, which floors are overdue or have *never* been
      walked), longest-open issues, recent walkthroughs.
    - **Issues**: filter by lodge / category / severity / text, mark resolved or
-     dismissed. There is no per-issue assignment — every issue carries WhatsApp
-     contact buttons for whoever is responsible (the floor's coordinators plus
-     the category's department contacts). A "✓? not seen" hint flags issues
-     that didn't come up in the latest walkthrough of that floor.
+     dismissed. There is no per-issue assignment — every issue carries a
+     WhatsApp Follow up button for whoever is responsible (the floor's
+     coordinators plus the category's department contacts). An issue stays
+     open until someone explicitly resolves it — no inferred status.
    - **Walkthroughs**: every submission with its raw checklist, extracted
      issues, and photos (proxied through the server so the API key stays local).
    - **Digest preview**: exactly what each coordinator's weekly email will say.

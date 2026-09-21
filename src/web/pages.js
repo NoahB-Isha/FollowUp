@@ -77,15 +77,11 @@ function ageText(i) {
   return `<span class="age ${age >= 14 ? 'old' : ''}">${t}</span>`;
 }
 
-function chips(issue, latestByUnit) {
+function chips(issue) {
   const out = [`<span class="chip cat-${esc(issue.category)}">${catBadge(issue.category)}</span>`];
   if (issue.severity === 'high') out.push(`<span class="chip sev-high">⚠ high</span>`);
   out.push(`<span class="chip ${issueAge(issue) >= 14 ? 'age-old' : ''}">${issueAge(issue)}d open</span>`);
   if (issue.occurrences > 1) out.push(`<span class="chip recur">seen ${issue.occurrences}×</span>`);
-  const latest = latestByUnit?.get(`${issue.lodge}|${issue.floor}`);
-  if (latest && issue.last_seen < latest) {
-    out.push(`<span class="chip stale-hint" title="Did not come up in the most recent walkthrough of ${esc(issue.lodge)} ${esc(floorLabel(issue.floor))} (${fmtDate(latest)}) — may be fixed">✓? not seen ${fmtDate(latest)}</span>`);
-  }
   return out.join(' ');
 }
 
@@ -106,14 +102,14 @@ function issueActions(issue) {
 }
 
 /** Full-featured table used on the Issues page, lodge pages, and walkthrough detail. */
-export function issuesTable(issues, latestByUnit, { areaOnly = false } = {}) {
+export function issuesTable(issues, { areaOnly = false } = {}) {
   if (!issues.length) return `<div class="empty">No open issues match.</div>`;
   return `<table class="data">
     <tr><th>Where</th><th>Issue</th><th></th><th>First seen</th><th>Contact / act</th></tr>
     ${issues.map((i) => `<tr>
       <td class="where">${areaOnly ? `<b>${esc(i.area)}</b>` : whereLabel(i)}</td>
       <td class="desc"><a href="/issue/${i.id}" title="History & similar issues">${esc(i.description)}</a></td>
-      <td class="chips">${chips(i, latestByUnit)}</td>
+      <td class="chips">${chips(i)}</td>
       <td class="num">${fmtDate(i.first_seen)}</td>
       <td><div class="actions">${issueActions(i)}</div></td>
     </tr>`).join('')}
@@ -231,7 +227,7 @@ export function overviewBody({ s, health, weekly, longest }) {
   <div class="card">${longestOpenTable(longest)}</div>`;
 }
 
-export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks, cov }) {
+export function lodgeBody({ health, issues, floorWalks, walks, cov }) {
   const byFloor = { First: [], Second: [] };
   for (const i of issues) (byFloor[i.floor] ??= []).push(i);
 
@@ -243,7 +239,7 @@ export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks, cov
     const floorOwners = lodgeOwnersFor(health.lodge, floor).join(', ');
     return `
     <h2>${esc(floorLabel(floor))} <span class="h-sub">· coord: ${esc(floorOwners)} · ${lastTxt} · ${list.length} open</span></h2>
-    <div class="card">${issuesTable(list, latestByUnit, { areaOnly: true })}</div>`;
+    <div class="card">${issuesTable(list, { areaOnly: true })}</div>`;
   }).join('');
 
   const lodgeUnits = cov.units.filter((u) => u.lodge === health.lodge);
@@ -276,7 +272,7 @@ export function lodgeBody({ health, issues, latestByUnit, floorWalks, walks, cov
   </div>`;
 }
 
-export function issuesBody({ issues, latestByUnit, filters, lodgesList }) {
+export function issuesBody({ issues, filters, lodgesList }) {
   const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === (cur || '') ? 'selected' : ''}>${esc(label ?? (v || 'all'))}</option>`;
   return `
   <h1>Open issues <span class="sub" style="font-size:14px">(${issues.length})</span></h1>
@@ -287,8 +283,8 @@ export function issuesBody({ issues, latestByUnit, filters, lodgesList }) {
     <input type="search" name="q" placeholder="search… (press enter)" value="${esc(filters.q || '')}">
     ${filters.lodge || filters.category || filters.severity || filters.q ? '<a class="btn" href="/issues">Clear</a>' : ''}
   </form>
-  <div class="card">${issuesTable(issues, latestByUnit)}</div>
-  <p class="sub">“✓? not seen” = the issue didn’t come up in the latest walkthrough of that floor — worth confirming, then Resolve.</p>`;
+  <div class="card">${issuesTable(issues)}</div>
+  <p class="sub">Issues stay open until someone marks them resolved — on the dashboard or via the check-off link in a follow-up message.</p>`;
 }
 
 export function walkthroughsBody({ cov, recent, showingAll, totalCount }) {
@@ -313,7 +309,7 @@ export function walkthroughsBody({ cov, recent, showingAll, totalCount }) {
   </div>`;
 }
 
-export function walkthroughDetailBody({ walk, areas, photos, sightings, latestByUnit }) {
+export function walkthroughDetailBody({ walk, areas, photos, sightings }) {
   const areaRows = areas.map((a) => {
     const statuses = JSON.parse(a.statuses_json || '[]');
     return `<tr>
@@ -332,7 +328,7 @@ export function walkthroughDetailBody({ walk, areas, photos, sightings, latestBy
   ${walk.comments ? `<div class="card"><b>Comments</b><p class="note">${esc(walk.comments)}</p></div>` : ''}
 
   <h2>Extracted action items (${sightings.length})</h2>
-  <div class="card">${issuesTable(sightings, latestByUnit)}</div>
+  <div class="card">${issuesTable(sightings)}</div>
 
   <h2>Raw checklist</h2>
   <div class="card"><table class="data">
@@ -403,7 +399,7 @@ export function completionBody({ m }) {
   </table></div>`;
 }
 
-export function issueDetailBody({ issue, sightings, similar, latestByUnit }) {
+export function issueDetailBody({ issue, sightings, similar }) {
   const statusChip = {
     open: '<span class="chip st-open">● open</span>',
     resolved: '<span class="chip st-resolved">✓ resolved</span>',
@@ -431,7 +427,7 @@ export function issueDetailBody({ issue, sightings, similar, latestByUnit }) {
   return `
   <p class="crumb"><a href="/issues">← Issues</a></p>
   <h1 style="font-size:20px">${esc(issue.description)}</h1>
-  <p class="sub">${whereLabel(issue)} · ${chips(issue, latestByUnit)} ${statusChip}</p>
+  <p class="sub">${whereLabel(issue)} · ${chips(issue)} ${statusChip}</p>
 
   <p>
     ${issue.status === 'open' ? `${followUpButton(contactsForIssue(issue), issueMessage(issue))} ${resolveForms(issue)}

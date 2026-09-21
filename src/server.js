@@ -8,7 +8,7 @@ import { dataVersion } from './db.js';
 import { sync } from './sync.js';
 import { ensureOriginal, ensureThumb } from './photos.js';
 import {
-  stats, coverage, openIssues, latestWalkDates, recentWalkthroughs,
+  stats, coverage, openIssues, recentWalkthroughs,
   walkthroughDetail, setIssueStatus,
   lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
   issueDetail, similarIssues, walkthroughCount,
@@ -116,7 +116,6 @@ server.get('/lodges/:lodge', cachedGet((req, res) => {
     body: pages.lodgeBody({
       health,
       issues,
-      latestByUnit: latestWalkDates(),
       floorWalks: lodgeFloorWalks(health.lodge),
       walks: lodgeWalkthroughs(health.lodge),
       cov: coverage(),
@@ -132,7 +131,6 @@ server.get('/issues', cachedGet((req, res) => {
   };
   const body = pages.issuesBody({
     issues: openIssues(filters),
-    latestByUnit: latestWalkDates(),
     filters,
     lodgesList: lodges.lodges,
   });
@@ -160,7 +158,6 @@ server.get('/issue/:id', cachedGet((req, res) => {
     body: pages.issueDetailBody({
       ...detail,
       similar: similarIssues(detail.issue),
-      latestByUnit: latestWalkDates(),
     }),
   }));
 }));
@@ -170,7 +167,7 @@ server.get('/walkthroughs/:id', cachedGet((req, res) => {
   if (!detail) return res.status(404).send(page({ title: 'Not found', body: '<p>Walkthrough not found. Try Sync.</p>' }));
   res.send(page({
     title: `${detail.walk.lodge} ${detail.walk.floor}`, active: '/walkthroughs',
-    body: pages.walkthroughDetailBody({ ...detail, latestByUnit: latestWalkDates() }),
+    body: pages.walkthroughDetailBody(detail),
   }));
 }));
 

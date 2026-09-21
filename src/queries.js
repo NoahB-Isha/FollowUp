@@ -63,7 +63,7 @@ export function issueAge(issue) {
   return daysBetween(issue.first_seen, today());
 }
 
-/** Latest walkthrough date per lodge+floor — used to flag "not seen lately". */
+/** Latest walkthrough date per lodge+floor (used by lodgeHealth). */
 export function latestWalkDates() {
   const rows = q(`SELECT lodge, floor, MAX(walk_date) d FROM walkthroughs GROUP BY lodge, floor`).all();
   return new Map(rows.map((r) => [`${r.lodge}|${r.floor}`, r.d]));

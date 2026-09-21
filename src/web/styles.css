@@ -229,7 +229,6 @@ a.cell:hover { transform: translateY(-1px); text-decoration: none; }
 .chip.sev-high { background: color-mix(in srgb, var(--critical) 13%, var(--surface)); color: var(--critical); border-color: transparent; font-weight: 700; }
 .chip.age-old { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
 .chip.recur { color: var(--ink-2); }
-.chip.stale-hint { color: var(--good-text); border-style: dashed; }
 
 /* Filters & forms */
 form.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; }
