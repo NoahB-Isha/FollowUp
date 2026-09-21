@@ -168,16 +168,19 @@ export function longestOpenTable(issues, { emptyMsg = 'Nothing open. 🎉' } = {
 }
 
 function lodgeCard(h) {
-  const floors = h.floors.map((f) =>
-    `${f.floor === 'First' ? '1st' : '2nd'}: ${f.lastWalked ? `${fmtDate(f.lastWalked)}${f.staleDays > 10 ? ' ⚠' : ''}` : 'never'}`
-  ).join(' · ');
   const owners = lodgeOwnersFor(h.lodge).join(', ');
-  const label = [h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · ');
+  const floorLine = (f) => {
+    const date = f.lastWalked
+      ? `${fmtDate(f.lastWalked)}${f.staleDays > 10 ? ' ⚠' : ''}`
+      : '<span class="status-miss">never</span>';
+    return `<div class="lc-floor">${f.floor === 'First' ? '1st' : '2nd'} Floor: <b>${date}</b></div>`;
+  };
   return `<a class="lodgecard" href="/lodges/${encodeURIComponent(h.lodge)}">
     <div class="lc-top"><span class="lc-name">${dormIcon(h.lodge, 30)} ${esc(h.lodge)}</span></div>
-    <div class="lc-label" title="${esc(label)}">${esc(label)}</div>
-    <div class="lc-nums">${h.open} open${h.high ? ` · <b class="bad">${h.high} high</b>` : ''}</div>
-    <div class="lc-floors" title="Last walked — ${esc(floors)}">${esc(floors)}</div>
+    <div class="lc-contacts" title="Contacts: ${esc(owners)}">Contacts: ${esc(owners) || '—'}</div>
+    <div class="lc-nums">${h.open} Open Issue${h.open === 1 ? '' : 's'}${h.high ? ` · <b class="bad">${h.high} High Priority</b>` : ''}</div>
+    <div class="lc-sub">Last Walkthrough</div>
+    ${h.floors.map(floorLine).join('')}
   </a>`;
 }
 

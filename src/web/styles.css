@@ -143,11 +143,16 @@ a.lodgecard:hover {
 }
 .lc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .lc-name { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lc-label, .lc-nums, .lc-floors { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lc-label { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
-.lc-nums { font-size: 14px; margin: 11px 0 6px; }
+.lc-contacts, .lc-nums, .lc-floor { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-contacts { color: var(--ink-2); font-size: 12.5px; margin-top: 7px; }
+.lc-nums { font-size: 14px; margin: 10px 0 0; }
 .lc-nums b.bad { color: var(--critical); }
-.lc-floors { color: var(--ink-2); font-size: 12.5px; }
+.lc-sub {
+  margin: 14px 0 3px; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+}
+.lc-floor { color: var(--ink-2); font-size: 13px; line-height: 1.6; }
+.lc-floor b { color: var(--ink); font-weight: 600; }
 
 /* Status pills — color always paired with a glyph + label */
 .pill {
