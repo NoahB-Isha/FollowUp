@@ -42,6 +42,22 @@ export async function sync({ full = false, photos = true } = {}) {
   const openIssuesFor = q(
     `SELECT id, description FROM issues WHERE status = 'open' AND lodge = ? AND floor = ? AND area = ?`
   );
+  const alreadySighted = q(
+    `SELECT 1 FROM issue_sightings WHERE issue_id = ? AND walkthrough_id = ?`
+  );
+
+  // Different cube numbers are different problems, however similar the words
+  // ("cube 7 needs light bulb" must never merge with "cube 1 needs light bulb").
+  const cubeNums = (text) => {
+    const s = new Set();
+    for (const m of text.matchAll(/cubes?\s*#?\s*(\d+)/gi)) s.add(m[1]);
+    return s;
+  };
+  const cubeConflict = (a, b) => {
+    if (!a.size || !b.size) return false;
+    for (const n of a) if (b.has(n)) return false;
+    return true;
+  };
 
   transaction(() => {
     let maxCreated = lastSeen ?? '';
@@ -63,31 +79,45 @@ export async function sync({ full = false, photos = true } = {}) {
 
       // Extract issues and dedupe against open ones in the same lodge/floor/area.
       // Token sets for open issues are computed once per area, not per candidate.
+      // An issue gains at most ONE sighting per submission ("seen N×" means N
+      // separate walkthroughs), and identical repeats inside one run-on note
+      // are dropped outright.
       const tokenCache = new Map();
+      const seenKeys = new Set();
       for (const cand of extractIssues(walk)) {
+        const candCubes = cubeNums(cand.description);
+        // Cube numbers are part of identity — the tokenizer drops single digits,
+        // so without them "cube 1 …" would look identical to "cube 7 …".
+        const key = `${cand.area}|${normKey(cand.description)}|${[...candCubes].sort().join(',')}`;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+
         const candTokens = tokens(cand.description);
         let open = tokenCache.get(cand.area);
         if (!open) {
           open = openIssuesFor.all(walk.lodge, walk.floor, cand.area)
-            .map((r) => ({ id: r.id, tok: tokens(r.description) }));
+            .map((r) => ({ id: r.id, tok: tokens(r.description), cubes: cubeNums(r.description) }));
           tokenCache.set(cand.area, open);
         }
         let matched = null;
         let best = 0;
         for (const row of open) {
+          if (cubeConflict(candCubes, row.cubes)) continue;
           const score = jaccard(candTokens, row.tok);
           if (score > best) { best = score; matched = row; }
         }
         if (matched && best >= 0.5) {
-          touchIssue.run(walk.walkDate, matched.id);
-          insertSighting.run(matched.id, walk.id, walk.walkDate, cand.description);
-          result.issuesRecurring++;
+          if (!alreadySighted.get(matched.id, walk.id)) {
+            touchIssue.run(walk.walkDate, matched.id);
+            insertSighting.run(matched.id, walk.id, walk.walkDate, cand.description);
+            result.issuesRecurring++;
+          }
         } else {
           const { lastInsertRowid } = insertIssue.run(walk.lodge, walk.floor, cand.area,
             cand.description, cand.category, cand.severity, walk.walkDate, walk.walkDate,
             normKey(cand.description));
           insertSighting.run(lastInsertRowid, walk.id, walk.walkDate, cand.description);
-          open.push({ id: Number(lastInsertRowid), tok: candTokens });
+          open.push({ id: Number(lastInsertRowid), tok: candTokens, cubes: candCubes });
           result.issuesNew++;
         }
       }
