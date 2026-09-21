@@ -1,8 +1,8 @@
 {
-  "_comment": "Names must match the form's Coordinator dropdown. Emails/phones are NOT stored here (this file is committed) — put them in config/coordinators.local.json (gitignored); see coordinators.local.example.json. 'assignedLodges' = dorms this person is responsible for (drives task contacts, digest scope, and reminders). 'role: overall' = sees everything and is the fallback contact for unassigned lodges. ASSIGNMENTS BELOW ARE GUESSES inferred from who actually walked/was mentioned where — please correct.",
+  "_comment": "Names must match the form's Coordinator dropdown. Emails/phones are NOT stored here (this file is committed) — put them in config/coordinators.local.json (gitignored); see coordinators.local.example.json. 'assignedLodges' = dorms this person is responsible for (drives task contacts, digest scope, and reminders). 'role: overall' = sees everything and is the fallback contact for unassigned lodges. Hickory has no assigned coordinator yet (falls back to overall).",
   "coordinators": [
     { "name": "Diana",   "assignedLodges": [], "digest": true },
-    { "name": "Jacob",   "assignedLodges": ["Hickory"], "digest": true },
+    { "name": "Jacob",   "assignedLodges": [], "digest": true },
     { "name": "Mora",    "assignedLodges": ["Magnolia", "Poplar"], "digest": true },
     { "name": "Navneet", "assignedLodges": ["Maple"], "digest": true },
     { "name": "Nikki",   "role": "overall", "assignedLodges": [], "digest": true },
@@ -15,10 +15,10 @@
     { "name": "Ramez", "note": "on the form notification list" }
   ],
   "departments": {
-    "_comment": "Issue category → department coordinators added to that task's contact list. Guesses: Joe handles maintenance, Jacob was counting supplies. Housekeeping lead unknown — fill in.",
-    "maintenance": ["Joe"],
-    "housekeeping": [],
-    "supplies": ["Jacob"],
+    "_comment": "Issue category → department coordinators added to that task's contact list. Maintenance team: Joe and Jacob. Housekeeping contact: Rob. Supplies has no dedicated contact — those tasks go to the lodge coordinator only.",
+    "maintenance": ["Joe", "Jacob"],
+    "housekeeping": ["Rob"],
+    "supplies": [],
     "other": []
   }
 }
