@@ -20,7 +20,7 @@ function themePicker(theme) {
   </form>`;
 }
 
-export function page({ title, active, body, flash, theme = { scheme: 'sunrise', mode: 'auto' } }) {
+export function page({ title, active, body, flash, theme = { scheme: 'lilac', mode: 'auto' } }) {
   return `<!doctype html>
 <html lang="en" data-scheme="${esc(theme.scheme)}"${theme.mode !== 'auto' ? ` data-mode="${esc(theme.mode)}"` : ''}>
 <head>

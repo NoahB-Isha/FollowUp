@@ -28,14 +28,14 @@ server.use(express.urlencoded({ extended: false }));
 server.use((req, res, next) => {
   const m = /(?:^|;\s*)fu_theme=([\w-]+)\.([\w-]+)/.exec(req.headers.cookie || '');
   req.theme = {
-    scheme: THEMES[m?.[1]] ? m[1] : 'sunrise',
+    scheme: THEMES[m?.[1]] ? m[1] : 'lilac',
     mode: MODES.includes(m?.[2]) ? m[2] : 'auto',
   };
   next();
 });
 
 server.post('/theme', (req, res) => {
-  const scheme = THEMES[req.body.scheme] ? req.body.scheme : 'sunrise';
+  const scheme = THEMES[req.body.scheme] ? req.body.scheme : 'lilac';
   const mode = MODES.includes(req.body.mode) ? req.body.mode : 'auto';
   res.set('Set-Cookie', `fu_theme=${scheme}.${mode}; Path=/; Max-Age=31536000; SameSite=Lax`);
   res.redirect(req.get('referer') || '/');

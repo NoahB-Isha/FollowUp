@@ -3,9 +3,14 @@
  * hand-picked, not an automatic inversion. Scheme + mode are chosen from the
  * header (cookie-persisted); mode "auto" follows the OS.
  *
- * - sunrise: the app's warm orange-cream default
+ * - lilac:   the default — #fefcff porcelain with the brand blue/purple,
+ *            #ffa74c apricot as its warm attention color
+ * - sunrise: the original warm orange-cream
  * - ember:   inspired by the StarAdmin palette (#F29F67 / #1E1E2C)
  * - skydash: inspired by the Skydash palette (#4B49AC / #98BDFF / #F3797E)
+ *
+ * Optional per-theme `warning` overrides the global attention color (due/
+ * pending cells, open-status chip, row hover tint, supplies chip).
  */
 
 export const THEMES = {
@@ -54,6 +59,7 @@ export const THEMES = {
       ink: '#2a2438', ink2: '#5f5873', muted: '#948da6',
       hairline: '#ece8f2', border: 'rgba(78, 60, 120, 0.13)',
       accent: '#1c4586', accentInk: '#ffffff', goodText: '#0b7a43',
+      warning: '#ffa74c',
       shadowSm: '0 1px 2px rgba(80,60,130,0.05), 0 3px 10px rgba(80,60,130,0.07)',
       shadowMd: '0 3px 6px rgba(80,60,130,0.07), 0 10px 26px rgba(80,60,130,0.13)',
     },
@@ -62,6 +68,7 @@ export const THEMES = {
       ink: '#f4f1fa', ink2: '#c8c2d8', muted: '#8f89a0',
       hairline: '#322c40', border: 'rgba(200, 180, 255, 0.14)',
       accent: '#8e7cc3', accentInk: '#ffffff', goodText: '#3fca8f',
+      warning: '#ffa74c',
       shadowSm: '0 1px 2px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.42)',
       shadowMd: '0 4px 8px rgba(0,0,0,0.50), 0 12px 30px rgba(0,0,0,0.55)',
     },
@@ -100,13 +107,13 @@ function vars(t, mode) {
   --page: ${t.page}; --surface: ${t.surface};
   --ink: ${t.ink}; --ink-2: ${t.ink2}; --muted: ${t.muted};
   --hairline: ${t.hairline}; --border: ${t.border};
-  --accent: ${t.accent}; --accent-ink: ${t.accentInk}; --good-text: ${t.goodText};
+  --accent: ${t.accent}; --accent-ink: ${t.accentInk}; --good-text: ${t.goodText};${t.warning ? `\n  --warning: ${t.warning};` : ''}
   --shadow-sm: ${t.shadowSm}; --shadow-md: ${t.shadowMd};${brand}`;
 }
 
 /** Token CSS for every scheme × mode; mode "auto" follows prefers-color-scheme. */
 export function buildThemeCss() {
-  const out = [`:root {\n  ${vars(THEMES.sunrise.light, 'light')}\n}`];
+  const out = [`:root {\n  ${vars(THEMES.lilac.light, 'light')}\n}`];
   for (const [name, t] of Object.entries(THEMES)) {
     out.push(`html[data-scheme="${name}"] {\n  ${vars(t.light, 'light')}\n}`);
     out.push(`html[data-scheme="${name}"][data-mode="dark"] {\n  ${vars(t.dark, 'dark')}\n}`);
