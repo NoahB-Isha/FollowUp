@@ -118,10 +118,11 @@ h2 { font-size: 18px; margin: 28px 0 10px; }
 .tile .label { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 
 /* Dormitory health cards */
+/* Always four across — card text stays on one line and ellipsizes instead of wrapping */
 .lodgecards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 8px;
 }
 a.lodgecard {
@@ -140,12 +141,13 @@ a.lodgecard:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   text-decoration: none;
 }
-.lc-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.lc-name { font-size: 19px; }
-.lc-label { color: var(--muted); font-size: 12.5px; margin-top: 5px; }
-.lc-nums { font-size: 14px; margin: 12px 0 6px; }
+.lc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lc-name { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-label, .lc-nums, .lc-floors { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-label { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+.lc-nums { font-size: 14px; margin: 11px 0 6px; }
 .lc-nums b.bad { color: var(--critical); }
-.lc-floors { color: var(--ink-2); font-size: 12.5px; line-height: 1.55; }
+.lc-floors { color: var(--ink-2); font-size: 12.5px; }
 
 /* Status pills — color always paired with a glyph + label */
 .pill {
@@ -305,6 +307,8 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 .coord:hover .avatar { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.avatar.xs { width: 28px; height: 28px; font-size: 11.5px; box-shadow: none; }
+.who { display: inline-flex; align-items: center; gap: 9px; }
 .coord.notdone .avatar, .coord.notdone .coord-name { filter: grayscale(1); opacity: 0.55; }
 .coord-name { font-weight: 700; margin-top: 8px; font-size: 15px; }
 .coord-status { font-size: 12px; margin: 2px 0 8px; min-height: 15px; line-height: 1.35; }

@@ -42,16 +42,16 @@ function dormIcon(lodge, size = 26) {
 // wins; otherwise a deterministic colored-initials circle.
 const AVATAR_HUES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 
-function avatar(name) {
+function avatar(name, cls = '') {
   for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
     if (existsSync(path.join(AVATAR_DIR, `${name}.${ext}`))) {
-      return `<img class="avatar" src="/avatars/${encodeURIComponent(name)}.${ext}" alt="">`;
+      return `<img class="avatar ${cls}" src="/avatars/${encodeURIComponent(name)}.${ext}" alt="">`;
     }
   }
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const c = AVATAR_HUES[h % AVATAR_HUES.length];
-  return `<span class="avatar" style="background:color-mix(in srgb, ${c} 22%, var(--surface));color:${c}">${esc(name.slice(0, 2))}</span>`;
+  return `<span class="avatar ${cls}" style="background:color-mix(in srgb, ${c} 22%, var(--surface));color:${c}">${esc(name.slice(0, 2))}</span>`;
 }
 
 function whereLabel(i) {
@@ -167,22 +167,17 @@ export function longestOpenTable(issues, { emptyMsg = 'Nothing open. 🎉' } = {
   </table>`;
 }
 
-const STATUS_PILL = {
-  good: `<span class="pill good">✓ All clear</span>`,
-  warning: `<span class="pill warn">⚠ Needs attention</span>`,
-  critical: `<span class="pill crit">‼ High priority</span>`,
-};
-
 function lodgeCard(h) {
   const floors = h.floors.map((f) =>
-    `${f.floor === 'First' ? '1st' : '2nd'}: ${f.lastWalked ? `${fmtDate(f.lastWalked)}${f.staleDays > 10 ? ' ⚠' : ''}` : 'never walked'}`
+    `${f.floor === 'First' ? '1st' : '2nd'}: ${f.lastWalked ? `${fmtDate(f.lastWalked)}${f.staleDays > 10 ? ' ⚠' : ''}` : 'never'}`
   ).join(' · ');
   const owners = lodgeOwnersFor(h.lodge).join(', ');
+  const label = [h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · ');
   return `<a class="lodgecard" href="/lodges/${encodeURIComponent(h.lodge)}">
-    <div class="lc-top"><span class="lc-name">${dormIcon(h.lodge, 30)} ${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
-    <div class="lc-label">${esc([h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · '))}</div>
-    <div class="lc-nums">${h.open} open issue${h.open === 1 ? '' : 's'}${h.high ? ` · <b class="bad">${h.high} high priority</b>` : ''}</div>
-    <div class="lc-floors">Last walked — ${floors}</div>
+    <div class="lc-top"><span class="lc-name">${dormIcon(h.lodge, 30)} ${esc(h.lodge)}</span></div>
+    <div class="lc-label" title="${esc(label)}">${esc(label)}</div>
+    <div class="lc-nums">${h.open} open${h.high ? ` · <b class="bad">${h.high} high</b>` : ''}</div>
+    <div class="lc-floors" title="Last walked — ${esc(floors)}">${esc(floors)}</div>
   </a>`;
 }
 
@@ -249,7 +244,7 @@ export function overviewBody({ s, health, weekly, streakMetrics, weekIssues, lon
   <h2>Dormitory health</h2>
   <div class="lodgecards">${health.map(lodgeCard).join('')}</div>
 
-  <h2>This week — ${esc(fmtWeek(weekly.weekStart))}</h2>
+  <h2>Weekly Walkthrough (${esc(fmtWeek(weekly.weekStart))})</h2>
   <div class="card">${coordBubbles(weekly)}</div>
 
   <h2>Last 6 weeks</h2>
@@ -281,7 +276,7 @@ export function lodgeBody({ health, issues, floorWalks, walks, cov }) {
 
   return `
   <p class="crumb"><a href="/">← Overview</a></p>
-  <h1>${dormIcon(health.lodge, 34)} ${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
+  <h1>${dormIcon(health.lodge, 34)} ${esc(health.lodge)}</h1>
   <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}coordinator${lodgeOwnersFor(health.lodge).length === 1 ? '' : 's'}: ${esc(lodgeOwnersFor(health.lodge).join(', ') || '—')}</p>
   <p class="lodge-stats">
     <span><b>${health.open}</b> open issue${health.open === 1 ? '' : 's'}</span>
@@ -373,7 +368,7 @@ export function streakTable(m) {
       return `<td class="${isNow ? 'thisweek' : ''}"><span class="dot ${isNow ? 'pending' : 'not'}" title="${isNow ? 'not yet this week' : 'no walkthrough'}">${isNow ? '·' : '—'}</span></td>`;
     }).join('');
     return `<tr>
-      <td class="nowrap"><b>${esc(c.name)}</b> <span class="muted" style="font-size:12px">${cfg ? esc(responsibilityLabel(cfg)) : ''}</span></td>
+      <td class="nowrap"><span class="who">${avatar(c.name, 'xs')} <b>${esc(c.name)}</b> <span class="muted" style="font-size:12px">${cfg ? esc(responsibilityLabel(cfg)) : ''}</span></span></td>
       ${cells}
       <td class="num">${c.n}</td>
       <td class="num">${c.lastWalked ? fmtDate(c.lastWalked) : '<span class="muted">never</span>'}</td>
