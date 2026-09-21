@@ -94,17 +94,20 @@ server.use('/fonts', express.static(path.join(__dirname, 'web/fonts'), {
   maxAge: 365 * 24 * 3600 * 1000, immutable: true, fallthrough: false,
 }));
 
+// Coordinator profile photos (optional) — drop <Name>.jpg into src/web/avatars.
+server.use('/avatars', express.static(path.join(__dirname, 'web/avatars'), {
+  maxAge: 24 * 3600 * 1000,
+}));
+
 // ---------- HTML pages ----------
 
 server.get('/', cachedGet((req, res) => {
-  const trackerView = req.query.tracker === '6w' ? '6w' : 'week';
   const wkStart = weekStart(today());
   const body = pages.overviewBody({
     s: stats(),
     health: lodgeHealth(),
     weekly: weeklyWalkStatus(),
-    trackerView,
-    streakMetrics: trackerView === '6w' ? completionMetrics() : null,
+    streakMetrics: completionMetrics(),
     weekIssues: openIssues({}).filter((i) => i.last_seen >= wkStart),
   });
   res.send(page({ title: 'Overview', active: '/', body, flash: req.query.flash }));

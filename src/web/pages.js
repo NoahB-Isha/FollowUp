@@ -1,8 +1,13 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { esc } from './layout.js';
 import { coordinators, phoneFor, contactsForIssue, lodgeOwnersFor, lodges as lodgesCfg } from '../config.js';
 import { issueAge } from '../queries.js';
 import { magicUrl } from '../links.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
+
+const AVATAR_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'avatars');
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
 const CAT_ICON = { housekeeping: '🧹', maintenance: '🔧', supplies: '📦', other: '📌' };
@@ -18,6 +23,22 @@ function floorLabel(floor) {
 
 function lodgeIcon(lodge) {
   return lodgesCfg.icons?.[lodge] ?? '🏠';
+}
+
+// Profile bubbles: a real photo dropped into src/web/avatars/<Name>.jpg|png
+// wins; otherwise a deterministic colored-initials circle.
+const AVATAR_HUES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+
+function avatar(name) {
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    if (existsSync(path.join(AVATAR_DIR, `${name}.${ext}`))) {
+      return `<img class="avatar" src="/avatars/${encodeURIComponent(name)}.${ext}" alt="">`;
+    }
+  }
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const c = AVATAR_HUES[h % AVATAR_HUES.length];
+  return `<span class="avatar" style="background:color-mix(in srgb, ${c} 22%, var(--surface));color:${c}">${esc(name.slice(0, 2))}</span>`;
 }
 
 function whereLabel(i) {
@@ -56,12 +77,12 @@ function waTitle(name) {
  * The hero action: one big Follow up button. A single responsible contact
  * links straight to their WhatsApp; several expand into per-person links.
  */
-function followUpButton(contacts, msg) {
+function followUpButton(contacts, msg, { size = '' } = {}) {
   // ✳ marks contacts with no WhatsApp number on file (config/coordinators.local.json):
   // the link still opens WhatsApp with the message ready, but can't pick the chat itself.
   if (contacts.length <= 1) {
     const name = contacts[0] || '';
-    return `<a class="btn-followup" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`;
+    return `<a class="btn-followup ${size}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`;
   }
   const links = contacts.map((name) =>
     `<a class="${phoneFor(name) ? '' : 'nonum'}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">💬 ${esc(name)}${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`).join('');
@@ -161,29 +182,24 @@ function responsibilityLabel(c) {
   return parts.join(', ') || '—';
 }
 
-function weeklyWalkTable(weekly) {
-  const rows = coordinators.coordinators.map((c) => {
+/** "This week" as a row of coordinator bubbles: done in color, not-done greyed with a Follow up. */
+function coordBubbles(weekly) {
+  const bubbles = coordinators.coordinators.map((c) => {
     const walks = weekly.byCoord.get(c.name) || [];
     const done = walks.length > 0;
-    const what = done
-      ? walks.map((w) => `<a href="/walkthroughs/${esc(w.id)}">${esc(w.lodge)} ${w.floor === 'First' ? '1st' : '2nd'} (${fmtDate(w.walk_date)})</a>`).join(', ')
-      : '<span class="muted">—</span>';
     const scope = c.role === 'overall' ? '' : responsibilityLabel(c).replace('—', '');
     const reminder = `Hi ${c.name} — friendly reminder to complete your lodge walkthrough${scope ? ` for ${scope}` : ''} this week (${fmtWeek(weekly.weekStart)}) and submit the checklist form. Thank you! 🙏`;
-    const action = done ? '' : followUpButton([c.name], reminder);
-    return `<tr>
-      <td class="nowrap"><b>${esc(c.name)}</b></td>
-      <td class="nowrap muted">${esc(responsibilityLabel(c))}</td>
-      <td class="nowrap">${done
-        ? `<span class="status-ok">✓ Completed${walks.length > 1 ? ` ×${walks.length}` : ''}</span>`
-        : `<span class="status-miss">✗ Not yet</span>`}</td>
-      <td>${what}</td>
-      <td class="nowrap">${action}</td>
-    </tr>`;
+    const status = done
+      ? walks.map((w) => `<a href="/walkthroughs/${esc(w.id)}" title="${esc(fmtDate(w.walk_date))}">✓ ${esc(w.lodge)} ${w.floor === 'First' ? '1st' : '2nd'}</a>`).join('<br>')
+      : 'Not done';
+    return `<div class="coord ${done ? 'done' : 'notdone'}" title="${esc(c.name)} — ${esc(responsibilityLabel(c))}">
+      ${avatar(c.name)}
+      <div class="coord-name">${esc(c.name)}</div>
+      <div class="coord-status">${status}</div>
+      ${done ? '' : followUpButton([c.name], reminder, { size: 'sm' })}
+    </div>`;
   }).join('');
-  return `<table class="data">
-    <tr><th>Coordinator</th><th>Responsible for</th><th>This week</th><th>Walked</th><th></th></tr>${rows}
-  </table>`;
+  return `<div class="coords">${bubbles}</div>`;
 }
 
 export function coverageGrid(cov) {
@@ -212,7 +228,7 @@ export function coverageGrid(cov) {
   </table>`;
 }
 
-export function overviewBody({ s, health, weekly, trackerView, streakMetrics, weekIssues }) {
+export function overviewBody({ s, health, weekly, streakMetrics, weekIssues }) {
   return `
   <h1>Lodge ambiance</h1>
   <p class="sub">${s.open} open issues · ${s.high} high priority · ${s.thisWeek} walkthrough${s.thisWeek === 1 ? '' : 's'} this week · ${s.resolved30} resolved in the last 30 days</p>
@@ -220,12 +236,11 @@ export function overviewBody({ s, health, weekly, trackerView, streakMetrics, we
   <h2>Dormitory health</h2>
   <div class="lodgecards">${health.map(lodgeCard).join('')}</div>
 
-  <h2>Walkthrough tracker</h2>
-  <div class="segmented">
-    <a class="${trackerView === 'week' ? 'on' : ''}" href="/">This week — ${esc(fmtWeek(weekly.weekStart))}</a>
-    <a class="${trackerView === '6w' ? 'on' : ''}" href="/?tracker=6w">Last 6 weeks</a>
-  </div>
-  <div class="card">${trackerView === '6w' ? streakTable(streakMetrics) : weeklyWalkTable(weekly)}</div>
+  <h2>This week — ${esc(fmtWeek(weekly.weekStart))}</h2>
+  <div class="card">${coordBubbles(weekly)}</div>
+
+  <h2>Last 6 weeks</h2>
+  <div class="card">${streakTable(streakMetrics)}</div>
 
   <h2>This week's issues <a style="font-size:13px;font-weight:400" href="/issues">see all issues →</a></h2>
   <div class="card">${longestOpenTable(weekIssues, { emptyMsg: 'No issues reported this week yet.' })}</div>`;

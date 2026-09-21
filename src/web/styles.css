@@ -287,20 +287,34 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
 }
 .fu-menu a:hover { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); transform: translateY(-1px); text-decoration: none; }
 
-/* Segmented toggle */
-.segmented {
-  display: inline-flex; gap: 2px; padding: 3px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 11px;
-  box-shadow: var(--shadow-sm); margin: -4px 0 14px;
+/* Coordinator bubbles ("This week") */
+.coords {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+  gap: 14px 10px;
+  padding: 4px 0;
 }
-.segmented a {
-  padding: 5px 13px; border-radius: 8px; color: var(--ink-2);
-  font-weight: 600; font-size: 13px; transition: background 0.12s ease, color 0.12s ease;
+.coord { text-align: center; }
+.avatar {
+  width: 58px; height: 58px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 700 20px var(--font-display);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  object-fit: cover;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
-.segmented a:hover { text-decoration: none; color: var(--ink); }
-.segmented a.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); }
+.coord:hover .avatar { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.coord.notdone .avatar, .coord.notdone .coord-name { filter: grayscale(1); opacity: 0.55; }
+.coord-name { font-weight: 700; margin-top: 7px; font-size: 14px; }
+.coord-status { font-size: 12px; margin: 2px 0 8px; min-height: 15px; line-height: 1.35; }
+.coord.done .coord-status, .coord.done .coord-status a { color: var(--good-text); font-weight: 600; }
+.coord.notdone .coord-status { color: var(--muted); }
 
-/* Streak grid (tracker + Completion page) */
+.btn-followup.sm { padding: 6px 11px; font-size: 12.5px; border-radius: 9px; gap: 6px; }
+.btn-followup.sm svg { width: 13px; height: 13px; }
+
+/* Streak grid (overview + Completion page) */
 table.streak td, table.streak th { text-align: center; }
 table.streak td:first-child, table.streak th:first-child { text-align: left; }
 table.streak th.thisweek, table.streak td.thisweek { background: color-mix(in srgb, var(--accent) 6%, transparent); }
