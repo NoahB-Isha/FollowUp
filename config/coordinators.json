@@ -1,8 +1,8 @@
 {
-  "_comment": "Names must match the form's Coordinator dropdown. Emails/phones are NOT stored here (this file is committed) — put them in config/coordinators.local.json (gitignored); see coordinators.local.example.json. 'assignedLodges' = dorms this person is responsible for (drives task contacts, digest scope, and reminders). 'role: overall' = sees everything and is the fallback contact for unassigned lodges. Hickory has no assigned coordinator yet (falls back to overall).",
+  "_comment": "Names must match the form's Coordinator dropdown. Emails/phones are NOT stored here (this file is committed) — put them in config/coordinators.local.json (gitignored); see coordinators.local.example.json. 'assignedLodges' = dorms this person is responsible for (drives task contacts, digest scope, and reminders). 'role: overall' = sees everything and is the fallback contact for unassigned lodges. Jacob is both Hickory's coordinator and on the maintenance team.",
   "coordinators": [
     { "name": "Diana",   "assignedLodges": [], "digest": true },
-    { "name": "Jacob",   "assignedLodges": [], "digest": true },
+    { "name": "Jacob",   "assignedLodges": ["Hickory"], "digest": true },
     { "name": "Mora",    "assignedLodges": ["Magnolia", "Poplar"], "digest": true },
     { "name": "Navneet", "assignedLodges": ["Maple"], "digest": true },
     { "name": "Nikki",   "role": "overall", "assignedLodges": [], "digest": true },
