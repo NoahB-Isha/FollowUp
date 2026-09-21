@@ -2,6 +2,12 @@
 .env
 config/coordinators.local.json
 
+# Coordinator photos stay on this machine (the repo is public)
+src/web/avatars/*.jpg
+src/web/avatars/*.jpeg
+src/web/avatars/*.png
+src/web/avatars/*.webp
+
 # Local data (JotForm submissions are sensitive; stays on this machine)
 data/
 
