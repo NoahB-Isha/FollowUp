@@ -18,14 +18,16 @@ export const app = loadJson('config/app.json');
 export const lodges = loadJson('config/lodges.json');
 export const coordinators = loadJson('config/coordinators.json');
 
-// Email addresses and phone numbers live in a gitignored local file so they
-// are never committed.
+// Email addresses, phone numbers, and extra scrub-names live in a gitignored
+// local file so they are never committed.
 let localEmails = {};
 let localPhones = {};
+let localScrubNames = [];
 try {
   const local = loadJson('config/coordinators.local.json');
   localEmails = local.emails ?? {};
   localPhones = local.phones ?? {};
+  localScrubNames = local.scrubNames ?? [];
 } catch { /* no local file yet */ }
 for (const c of [...coordinators.coordinators, ...(coordinators.extraRecipients ?? [])]) {
   c.email = localEmails[c.name] || '';
@@ -50,6 +52,15 @@ export function assignmentMatches(assignments, lodge, floor = null) {
     const [l, f] = a.split(':');
     return l === lodge && (!f || !floor || f === floor);
   });
+}
+
+/** Every name to anonymize before text leaves the machine: config names + local extras. */
+export function scrubNameList() {
+  return [
+    ...coordinators.coordinators.map((c) => c.name),
+    ...(coordinators.extraRecipients ?? []).map((c) => c.name),
+    ...localScrubNames,
+  ];
 }
 
 /** Coordinators responsible for a lodge (optionally one floor); falls back to 'overall' coordinators. */

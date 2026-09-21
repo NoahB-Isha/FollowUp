@@ -3,6 +3,7 @@ import { q, hasWalkthrough, transaction, bumpDataVersion, getMeta, setMeta, db }
 import { getAllSubmissions } from './jotform.js';
 import { normalizeSubmission } from './normalize.js';
 import { extractIssues, isNotApplicable } from './extract.js';
+import { extractIssuesLLM, llmAvailable, llmModel } from './extract-llm.js';
 import { tokens, jaccard, normKey } from './util.js';
 import { warmup } from './photos.js';
 
@@ -13,12 +14,45 @@ import { warmup } from './photos.js';
  * skipped — so manual issue state (resolved/assigned) is never clobbered.
  * All writes happen in one transaction (one fsync instead of hundreds).
  */
-export async function sync({ full = false, photos = true } = {}) {
+export async function sync({ full = false, photos = true, llm = true } = {}) {
   const lastSeen = full ? null : getMeta('last_created_at');
   const since = lastSeen ? `${lastSeen.slice(0, 10)} 00:00:00` : null;
   const subs = await getAllSubmissions(app.walkthroughFormId, { sinceCreatedAt: since });
-  const result = { fetched: subs.length, added: 0, skipped: 0, issuesNew: 0, issuesRecurring: 0, photosWarmed: 0 };
+  const result = {
+    fetched: subs.length, added: 0, skipped: 0,
+    issuesNew: 0, issuesRecurring: 0, photosWarmed: 0,
+    extractor: 'rules',
+  };
   const newPhotoUrls = [];
+
+  // Normalize the new submissions and extract their issues BEFORE the write
+  // transaction — extraction may call Gemini (async, anonymized), and falls
+  // back to the rule-based extractor on any failure so ingest never breaks.
+  let maxCreated = lastSeen ?? '';
+  const pending = [];
+  for (const sub of subs) {
+    if (sub.created_at > maxCreated) maxCreated = sub.created_at;
+    if (sub.status === 'DELETED') continue;
+    if (hasWalkthrough(sub.id)) { result.skipped++; continue; }
+    const walk = normalizeSubmission(sub);
+    if (!walk) { result.skipped++; continue; }
+    pending.push({ sub, walk });
+  }
+
+  const useLLM = llm && llmAvailable();
+  if (useLLM) result.extractor = llmModel();
+  for (const p of pending) {
+    p.candidates = null;
+    if (useLLM) {
+      try {
+        p.candidates = await extractIssuesLLM(p.walk); // sequential — respects free-tier rate limits
+      } catch (err) {
+        console.error(`LLM extraction failed for ${p.walk.lodge} ${p.walk.floor} (${err.message}) — using rules.`);
+        result.extractor = `${llmModel()} + rules fallback`;
+      }
+    }
+    if (!p.candidates) p.candidates = extractIssues(p.walk);
+  }
 
   const insertWalk = q(
     `INSERT INTO walkthroughs (id, submitted_at, walk_date, coordinator, lodge, floor, comments, raw_json)
@@ -60,14 +94,7 @@ export async function sync({ full = false, photos = true } = {}) {
   };
 
   transaction(() => {
-    let maxCreated = lastSeen ?? '';
-    for (const sub of subs) {
-      if (sub.created_at > maxCreated) maxCreated = sub.created_at;
-      if (sub.status === 'DELETED') continue;
-      if (hasWalkthrough(sub.id)) { result.skipped++; continue; }
-      const walk = normalizeSubmission(sub);
-      if (!walk) { result.skipped++; continue; }
-
+    for (const { sub, walk, candidates } of pending) {
       insertWalk.run(walk.id, walk.submittedAt, walk.walkDate, walk.coordinator,
         walk.lodge, walk.floor, walk.comments, JSON.stringify(sub));
 
@@ -84,7 +111,7 @@ export async function sync({ full = false, photos = true } = {}) {
       // are dropped outright.
       const tokenCache = new Map();
       const seenKeys = new Set();
-      for (const cand of extractIssues(walk)) {
+      for (const cand of candidates) {
         const candCubes = cubeNums(cand.description);
         // Cube numbers are part of identity — the tokenizer drops single digits,
         // so without them "cube 1 …" would look identical to "cube 7 …".
@@ -140,16 +167,17 @@ export async function sync({ full = false, photos = true } = {}) {
   return result;
 }
 
-// CLI entry: `npm run sync` — flags: --full (refetch everything), --no-photos
+// CLI entry: `npm run sync` — flags: --full (refetch everything), --no-photos, --no-llm
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const full = process.argv.includes('--full');
   const photos = !process.argv.includes('--no-photos');
+  const llm = !process.argv.includes('--no-llm');
   const t0 = performance.now();
-  sync({ full, photos })
+  sync({ full, photos, llm })
     .then((r) => {
       const ms = Math.round(performance.now() - t0);
       console.log(`Fetched ${r.fetched} submissions → ${r.added} new, ${r.skipped} already known (${ms} ms).`);
-      console.log(`Issues: ${r.issuesNew} new, ${r.issuesRecurring} recurring sightings.`);
+      console.log(`Issues: ${r.issuesNew} new, ${r.issuesRecurring} recurring (extractor: ${r.extractor}).`);
       if (photos) console.log(`Photos warmed: ${r.photosWarmed}.`);
     })
     .catch((err) => { console.error('Sync failed:', err.message); process.exit(1); });

@@ -23,5 +23,8 @@
     "Thomas": "",
     "Joe": "",
     "Ramez": ""
-  }
+  },
+  "scrubNames": [
+    "any resident or staff names that appear in walkthrough notes — they get anonymized before text is sent to the LLM"
+  ]
 }

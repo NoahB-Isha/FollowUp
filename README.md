@@ -84,9 +84,18 @@ JotForm API ──sync──▶ SQLite (data/followup.db, local disk)
 - Dashboard binds to `127.0.0.1`. Photos are fetched server-side and cached in
   `data/photocache/` so the browser never sees the API key.
 - All walkthrough data stays in `data/` (gitignored).
-- Issue extraction is **rule-based on purpose** — no data leaves campus. The
-  extractor is one module (`src/extract.js`); a local LLM (e.g. Ollama) can be
-  swapped in later without touching the pipeline.
+- **Issue extraction**: with `GEMINI_API_KEY` set (free tier —
+  https://aistudio.google.com/apikey), sync sends each new walkthrough's notes
+  to Gemini Flash and gets back structured issues. Notes are **anonymized
+  first**: coordinator/department names and any names in the local
+  `scrubNames` list become Person1/Person2, emails and phone numbers become
+  placeholders, and real names are restored locally afterwards. Who walked,
+  contact info, and photos are never sent. Without a key — or on any API
+  error — the built-in rule-based extractor (`src/extract.js`) takes over, so
+  ingest never depends on the network. Verify with `npm run llm:test`, and
+  after first enabling the key consider one `npm run sync -- --full` rebuild
+  so history is extracted at the same quality (note: a full rebuild resets
+  resolved/dismissed marks).
 
 ### Performance notes
 

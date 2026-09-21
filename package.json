@@ -12,7 +12,8 @@
     "serve": "node --disable-warning=ExperimentalWarning src/server.js",
     "digest": "node --disable-warning=ExperimentalWarning src/digest.js",
     "digest:send": "node --disable-warning=ExperimentalWarning src/digest.js --send",
-    "warm": "node --disable-warning=ExperimentalWarning src/warm.js"
+    "warm": "node --disable-warning=ExperimentalWarning src/warm.js",
+    "llm:test": "node --disable-warning=ExperimentalWarning src/llm-test.js"
   },
   "dependencies": {
     "express": "^5.1.0",
