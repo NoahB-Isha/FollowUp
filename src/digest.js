@@ -78,7 +78,8 @@ export function buildDigest(coordinator) {
 
   const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#0b0b0b;background:#fcfcfb;margin:0;padding:24px;">
   <div style="max-width:680px;margin:0 auto;">
-    <h1 style="font-size:20px;margin:0 0 2px;">FollowUp — week of ${fmtWeek(wkStart)}</h1>
+    <h1 style="font-size:20px;margin:0 0 2px;"><span style="color:#1c4586;">Follow</span><span style="color:#8e7cc3;">Up</span> — week of ${fmtWeek(wkStart)}</h1>
+    <div style="width:56px;height:3px;background:#ffa74c;border-radius:2px;margin:8px 0 12px;"></div>
     <p style="color:#52514e;margin:0 0 18px;">Hi ${esc(coordinator.name)} — here's the lodge ambiance picture as of ${fmtDate(date)}.</p>
 
     <table style="border-collapse:collapse;margin:0 0 18px;">

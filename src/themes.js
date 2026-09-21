@@ -61,7 +61,7 @@ export const THEMES = {
       ink: '#2a2438', ink2: '#5f5873', muted: '#948da6',
       hairline: '#ece8f2', border: 'rgba(78, 60, 120, 0.13)',
       accent: '#1c4586', accentInk: '#ffffff', goodText: '#0b7a43',
-      warning: '#ffa74c', flair: '#ffa74c',
+      warning: '#ffa74c', flair: '#ffa74c', flairInk: '#33240f', action: '#5f74cc',
       shadowSm: '0 1px 2px rgba(80,60,130,0.05), 0 3px 10px rgba(80,60,130,0.07)',
       shadowMd: '0 3px 6px rgba(80,60,130,0.07), 0 10px 26px rgba(80,60,130,0.13)',
     },
@@ -70,7 +70,7 @@ export const THEMES = {
       ink: '#f4f1fa', ink2: '#c8c2d8', muted: '#8f89a0',
       hairline: '#322c40', border: 'rgba(200, 180, 255, 0.14)',
       accent: '#8e7cc3', accentInk: '#ffffff', goodText: '#3fca8f',
-      warning: '#ffa74c', flair: '#ffa74c',
+      warning: '#ffa74c', flair: '#ffa74c', flairInk: '#33240f',
       shadowSm: '0 1px 2px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.42)',
       shadowMd: '0 4px 8px rgba(0,0,0,0.50), 0 12px 30px rgba(0,0,0,0.55)',
     },
@@ -111,7 +111,7 @@ function vars(t, mode) {
   --hairline: ${t.hairline}; --border: ${t.border};
   --accent: ${t.accent}; --accent-ink: ${t.accentInk}; --good-text: ${t.goodText};
   --action: ${t.action ?? t.accent}; --action-ink: ${t.actionInk ?? t.accentInk};
-  --flair: ${t.flair ?? t.accent};${t.warning ? `\n  --warning: ${t.warning};` : ''}
+  --flair: ${t.flair ?? t.accent}; --flair-ink: ${t.flairInk ?? t.accentInk};${t.warning ? `\n  --warning: ${t.warning};` : ''}
   --shadow-sm: ${t.shadowSm}; --shadow-md: ${t.shadowMd};${brand}`;
 }
 
