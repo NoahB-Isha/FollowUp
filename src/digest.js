@@ -15,6 +15,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
+const CAT_ICON = { housekeeping: '🧹', maintenance: '🔧', supplies: '📦', other: '📌' };
 
 function issueRow(i) {
   const age = issueAge(i);
@@ -24,7 +25,7 @@ function issueRow(i) {
   return `<tr>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;">${esc(i.area)}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;">${esc(i.description)}${sev}</td>
-    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:#52514e;">${CAT_LABEL[i.category] || i.category}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:#52514e;">${CAT_ICON[i.category] || CAT_ICON.other} ${CAT_LABEL[i.category] || i.category}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:${age >= 14 ? '#d03b3b' : '#52514e'};">${ageTxt}${rep}</td>
   </tr>`;
 }
@@ -49,7 +50,6 @@ export function buildDigest(coordinator) {
   const scope = coordinator.assignedLodges?.length ? coordinator.assignedLodges : null;
 
   let issues = openIssues({});
-  const mine = issues.filter((i) => i.assignee === coordinator.name);
   if (scope) issues = issues.filter((i) => assignmentMatches(scope, i.lodge, i.floor));
 
   const cov = coverage(2);
@@ -85,12 +85,8 @@ export function buildDigest(coordinator) {
         <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;color:${high.length ? '#d03b3b' : '#0b0b0b'};">${high.length}</div><div style="font-size:12px;color:#52514e;">high priority</div></td>
         <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${fresh.length}</div><div style="font-size:12px;color:#52514e;">new this week</div></td>
         <td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${ongoing.length}</div><div style="font-size:12px;color:#52514e;">ongoing</div></td>
-        ${mine.length ? `<td style="padding:10px 18px;"><div style="font-size:26px;font-weight:600;">${mine.length}</div><div style="font-size:12px;color:#52514e;">assigned to you</div></td>` : ''}
       </tr>
     </table>
-
-    ${mine.length ? `<h2 style="font-size:17px;margin:18px 0 6px;">Assigned to you</h2>
-      <table style="border-collapse:collapse;width:100%;font-size:14px;">${mine.map(issueRow).join('')}</table>` : ''}
 
     <h2 style="font-size:17px;margin:22px 0 6px;">Walkthrough coverage this week</h2>
     <table style="border-collapse:collapse;width:100%;font-size:14px;">${covRows}</table>

@@ -4,13 +4,11 @@ import { issueAge } from '../queries.js';
 import { fmtDate, fmtWeek, today, weekStart } from '../util.js';
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
+const CAT_ICON = { housekeeping: '🧹', maintenance: '🔧', supplies: '📦', other: '📌' };
 const CATEGORIES = Object.keys(CAT_LABEL);
 
-export function assigneeNames() {
-  return [
-    ...coordinators.coordinators.map((c) => c.name),
-    ...(coordinators.extraRecipients || []).map((c) => c.name),
-  ];
+function catBadge(category) {
+  return `${CAT_ICON[category] || CAT_ICON.other} ${CAT_LABEL[category] || esc(category)}`;
 }
 
 function floorLabel(floor) {
@@ -58,7 +56,7 @@ function ageText(i) {
 }
 
 function chips(issue, latestByUnit) {
-  const out = [`<span class="chip cat-${esc(issue.category)}">${CAT_LABEL[issue.category] || esc(issue.category)}</span>`];
+  const out = [`<span class="chip cat-${esc(issue.category)}">${catBadge(issue.category)}</span>`];
   if (issue.severity === 'high') out.push(`<span class="chip sev-high">⚠ high</span>`);
   out.push(`<span class="chip ${issueAge(issue) >= 14 ? 'age-old' : ''}">${issueAge(issue)}d open</span>`);
   if (issue.occurrences > 1) out.push(`<span class="chip recur">seen ${issue.occurrences}×</span>`);
@@ -77,14 +75,7 @@ function resolveForms(i) {
 }
 
 function issueActions(issue) {
-  const opts = assigneeNames().map((n) =>
-    `<option value="${esc(n)}" ${issue.assignee === n ? 'selected' : ''}>${esc(n)}</option>`).join('');
   return `
-    <form class="inline" method="post" action="/issues/${issue.id}/assign">
-      <select name="assignee" onchange="this.form.submit()">
-        <option value="">unassigned</option>${opts}
-      </select>
-    </form>
     ${contactButtons(issue)}
     ${resolveForms(issue)}
     <form class="inline" method="post" action="/issues/${issue.id}/status">
@@ -96,7 +87,7 @@ function issueActions(issue) {
 export function issuesTable(issues, latestByUnit, { areaOnly = false } = {}) {
   if (!issues.length) return `<div class="empty">No open issues match.</div>`;
   return `<table class="data">
-    <tr><th>Where</th><th>Issue</th><th></th><th>First seen</th><th>Assign / act</th></tr>
+    <tr><th>Where</th><th>Issue</th><th></th><th>First seen</th><th>Contact / act</th></tr>
     ${issues.map((i) => `<tr>
       <td class="nowrap">${areaOnly ? `<b>${esc(i.area)}</b>` : whereLabel(i)}</td>
       <td class="desc">${esc(i.description)}</td>
@@ -115,7 +106,7 @@ export function longestOpenTable(issues) {
     ${issues.map((i) => `<tr>
       <td class="nowrap">${whereLabel(i)}</td>
       <td class="desc">${esc(i.description)}${i.occurrences > 1 ? ` <span class="muted">(reported ${i.occurrences}×)</span>` : ''}</td>
-      <td class="nowrap">${CAT_LABEL[i.category] || esc(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
+      <td class="nowrap">${catBadge(i.category)}${i.severity === 'high' ? ' <span class="chip sev-high">⚠ high</span>' : ''}<br>${ageText(i)}</td>
       <td class="nowrap">
         ${contactButtons(i)}
         ${resolveForms(i)}
@@ -266,9 +257,8 @@ export function issuesBody({ issues, latestByUnit, filters, lodgesList }) {
   <h1>Open issues <span class="sub" style="font-size:14px">(${issues.length})</span></h1>
   <form class="filters" method="get" action="/issues">
     <select name="lodge">${['', ...lodgesList].map((l) => opt(l, filters.lodge, l || 'all lodges')).join('')}</select>
-    <select name="category">${['', ...CATEGORIES].map((c) => opt(c, filters.category, c ? CAT_LABEL[c] : 'all categories')).join('')}</select>
+    <select name="category">${['', ...CATEGORIES].map((c) => opt(c, filters.category, c ? `${CAT_ICON[c]} ${CAT_LABEL[c]}` : 'all categories')).join('')}</select>
     <select name="severity">${opt('', filters.severity, 'any severity')}${opt('high', filters.severity, '⚠ high')}${opt('normal', filters.severity, 'normal')}</select>
-    <select name="assignee">${['', ...assigneeNames()].map((a) => opt(a, filters.assignee, a || 'any assignee')).join('')}</select>
     <input type="search" name="q" placeholder="search text…" value="${esc(filters.q || '')}">
     <button class="primary">Filter</button>
     <a class="btn" href="/issues">Clear</a>

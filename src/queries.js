@@ -46,13 +46,12 @@ export function coverage(weeks = app.coverageWeeks) {
   return { weekStarts, units };
 }
 
-export function openIssues({ lodge, category, severity, assignee, q: text } = {}) {
+export function openIssues({ lodge, category, severity, q: text } = {}) {
   const where = [`status = 'open'`];
   const params = [];
   if (lodge) { where.push('lodge = ?'); params.push(lodge); }
   if (category) { where.push('category = ?'); params.push(category); }
   if (severity) { where.push('severity = ?'); params.push(severity); }
-  if (assignee) { where.push('assignee = ?'); params.push(assignee); }
   if (text) { where.push('description LIKE ?'); params.push(`%${text}%`); }
   return q(
     `SELECT * FROM issues WHERE ${where.join(' AND ')}
@@ -262,7 +261,3 @@ export function setIssueStatus(id, status, by) {
   bumpDataVersion();
 }
 
-export function assignIssue(id, assignee) {
-  q(`UPDATE issues SET assignee = ? WHERE id = ?`).run(assignee || null, id);
-  bumpDataVersion();
-}

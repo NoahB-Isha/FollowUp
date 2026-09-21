@@ -62,11 +62,12 @@ export function lodgeOwnersFor(lodge, floor = null) {
 }
 
 /**
- * Contact list for a task: the explicit assignee (or that floor's coordinators),
- * plus the department coordinators for the issue's category.
+ * Contact list for a task: that floor's coordinators plus the department
+ * coordinators for the issue's category. Responsibility comes entirely from
+ * config — issues are never individually assigned.
  */
 export function contactsForIssue(issue) {
-  const list = issue.assignee ? [issue.assignee] : [...lodgeOwnersFor(issue.lodge, issue.floor)];
+  const list = [...lodgeOwnersFor(issue.lodge, issue.floor)];
   for (const n of coordinators.departments?.[issue.category] ?? []) list.push(n);
   return [...new Set(list)];
 }

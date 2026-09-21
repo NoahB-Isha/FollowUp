@@ -9,7 +9,7 @@ import { sync } from './sync.js';
 import { ensureOriginal, ensureThumb } from './photos.js';
 import {
   stats, coverage, openIssues, latestWalkDates, recentWalkthroughs,
-  walkthroughDetail, setIssueStatus, assignIssue,
+  walkthroughDetail, setIssueStatus,
   lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
 } from './queries.js';
 import { buildDigest } from './digest.js';
@@ -118,8 +118,7 @@ server.get('/lodges/:lodge', cachedGet((req, res) => {
 server.get('/issues', cachedGet((req, res) => {
   const filters = {
     lodge: req.query.lodge || '', category: req.query.category || '',
-    severity: req.query.severity || '', assignee: req.query.assignee || '',
-    q: req.query.q || '',
+    severity: req.query.severity || '', q: req.query.q || '',
   };
   const body = pages.issuesBody({
     issues: openIssues(filters),
@@ -175,11 +174,6 @@ server.post('/sync', async (req, res) => {
 server.post('/issues/:id/status', (req, res) => {
   const status = ['open', 'resolved', 'dismissed'].includes(req.body.status) ? req.body.status : 'open';
   setIssueStatus(Number(req.params.id), status, req.body.by || 'dashboard');
-  res.redirect(req.get('referer') || '/issues');
-});
-
-server.post('/issues/:id/assign', (req, res) => {
-  assignIssue(Number(req.params.id), req.body.assignee || null);
   res.redirect(req.get('referer') || '/issues');
 });
 

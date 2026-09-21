@@ -34,8 +34,10 @@ npm run serve               # dashboard at http://localhost:4820
    - **Overview**: stat tiles, a lodge × floor **coverage grid** for the last 6
      weeks (who walked what, which floors are overdue or have *never* been
      walked), longest-open issues, recent walkthroughs.
-   - **Issues**: filter by lodge / category / severity / assignee, assign to a
-     coordinator, mark resolved or dismissed. A "✓? not seen" hint flags issues
+   - **Issues**: filter by lodge / category / severity / text, mark resolved or
+     dismissed. There is no per-issue assignment — every issue carries WhatsApp
+     contact buttons for whoever is responsible (the floor's coordinators plus
+     the category's department contacts). A "✓? not seen" hint flags issues
      that didn't come up in the latest walkthrough of that floor.
    - **Walkthroughs**: every submission with its raw checklist, extracted
      issues, and photos (proxied through the server so the API key stays local).
