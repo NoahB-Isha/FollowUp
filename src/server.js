@@ -11,13 +11,13 @@ import {
   stats, coverage, openIssues, recentWalkthroughs,
   walkthroughDetail, setIssueStatus,
   lodgeHealth, weeklyWalkStatus, lodgeFloorWalks, lodgeWalkthroughs, completionMetrics,
-  issueDetail, similarIssues, walkthroughCount,
+  issueDetail, similarIssues,
 } from './queries.js';
 import { verifyToken } from './links.js';
 import { buildDigest } from './digest.js';
 import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
-import { today, weekStart } from './util.js';
+import { today, weekStart, addDays } from './util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = express();
@@ -103,12 +103,15 @@ server.use('/avatars', express.static(path.join(__dirname, 'web/avatars'), {
 
 server.get('/', cachedGet((req, res) => {
   const wkStart = weekStart(today());
+  const twoWeeksAgo = addDays(today(), -14);
+  const open = openIssues({});
   const body = pages.overviewBody({
     s: stats(),
     health: lodgeHealth(),
     weekly: weeklyWalkStatus(),
     streakMetrics: completionMetrics(),
-    weekIssues: openIssues({}).filter((i) => i.last_seen >= wkStart),
+    weekIssues: open.filter((i) => i.last_seen >= wkStart),
+    longTerm: open.filter((i) => i.first_seen <= twoWeeksAgo).slice(0, 10),
   });
   res.send(page({ title: 'Overview', active: '/', body, flash: req.query.flash }));
 }));
@@ -144,18 +147,9 @@ server.get('/issues', cachedGet((req, res) => {
   res.send(page({ title: 'Issues', active: '/issues', body, flash: req.query.flash }));
 }));
 
-server.get('/walkthroughs', cachedGet((req, res) => {
-  const showingAll = req.query.all === '1';
-  res.send(page({
-    title: 'Walkthroughs', active: '/walkthroughs',
-    body: pages.walkthroughsBody({
-      cov: coverage(),
-      recent: showingAll ? recentWalkthroughs(1000) : recentWalkthroughs(1000, { sinceWeeks: 6 }),
-      showingAll,
-      totalCount: walkthroughCount(),
-    }),
-  }));
-}));
+// Retired list pages — walkthrough details live on, linked from lodge pages.
+server.get('/walkthroughs', (req, res) => res.redirect('/'));
+server.get('/completion', (req, res) => res.redirect('/'));
 
 server.get('/issue/:id', cachedGet((req, res) => {
   const detail = issueDetail(Number(req.params.id));
@@ -175,13 +169,6 @@ server.get('/walkthroughs/:id', cachedGet((req, res) => {
   res.send(page({
     title: `${detail.walk.lodge} ${detail.walk.floor}`, active: '/walkthroughs',
     body: pages.walkthroughDetailBody(detail),
-  }));
-}));
-
-server.get('/completion', cachedGet((req, res) => {
-  res.send(page({
-    title: 'Form completion', active: '/completion',
-    body: pages.completionBody({ m: completionMetrics() }),
   }));
 }));
 

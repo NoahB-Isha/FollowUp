@@ -21,8 +21,21 @@ function floorLabel(floor) {
   return floor === 'First' ? 'First floor' : floor === 'Second' ? 'Second floor' : `${floor} floor`;
 }
 
-function lodgeIcon(lodge) {
-  return lodgesCfg.icons?.[lodge] ?? '🏠';
+// Dorm icons — Lucide (ISC), inlined so nothing loads externally.
+// Emoji (lodges.json "icons") are still used in digest emails, where inline SVG gets stripped.
+const DORM_SVG = {
+  Hickory: `<path d="M12 4V2"/><path d="M5 10v4a7.004 7.004 0 0 0 5.277 6.787c.412.104.802.292 1.102.592L12 22l.621-.621c.3-.3.69-.488 1.102-.592A7.003 7.003 0 0 0 19 14v-4"/><path d="M12 4C8 4 4.5 6 4 8c-.243.97-.919 1.952-2 3 1.31-.082 1.972-.29 3-1 .54.92.982 1.356 2 2 1.452-.647 1.954-1.098 2.5-2 .595.995 1.151 1.427 2.5 2 1.31-.621 1.862-1.058 2.5-2 .629.977 1.162 1.423 2.5 2 1.209-.548 1.68-.967 2-2 1.032.916 1.683 1.157 3 1-1.297-1.036-1.758-2.03-2-3-.5-2-4-4-8-4Z"/>`, // nut
+  Maple: `<path d="M11 20a10 10 0 0 0 10-10 25.9 25.9 0 0 0-1.04-7.281 1 1 0 0 0-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0 0 11 20"/><path d="M2 21a5 5 0 0 1 2.911-4.544C7.613 15.212 8.351 15.24 11 13"/>`, // leaf
+  Magnolia: `<circle cx="12" cy="12" r="3"/><path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/><path d="M12 7.5V9"/><path d="M7.5 12H9"/><path d="M16.5 12H15"/><path d="M12 16.5V15"/><path d="m8 8 1.88 1.88"/><path d="M14.12 9.88 16 8"/><path d="m8 16 1.88-1.88"/><path d="M14.12 14.12 16 16"/>`, // flower
+  Poplar: `<path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19v3"/><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/>`, // trees
+};
+const DORM_FALLBACK_SVG = `<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>`;
+
+function dormIcon(lodge, size = 26) {
+  const color = lodgesCfg.colors?.[lodge] ?? 'currentColor';
+  return `<svg class="dorm-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
+    stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true">${DORM_SVG[lodge] ?? DORM_FALLBACK_SVG}</svg>`;
 }
 
 // Profile bubbles: a real photo dropped into src/web/avatars/<Name>.jpg|png
@@ -166,7 +179,7 @@ function lodgeCard(h) {
   ).join(' · ');
   const owners = lodgeOwnersFor(h.lodge).join(', ');
   return `<a class="lodgecard" href="/lodges/${encodeURIComponent(h.lodge)}">
-    <div class="lc-top"><span class="lc-name"><span class="lc-icon">${lodgeIcon(h.lodge)}</span> ${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
+    <div class="lc-top"><span class="lc-name">${dormIcon(h.lodge, 30)} ${esc(h.lodge)}</span>${STATUS_PILL[h.status]}</div>
     <div class="lc-label">${esc([h.label, owners && `coord: ${owners}`].filter(Boolean).join(' · '))}</div>
     <div class="lc-nums">${h.open} open issue${h.open === 1 ? '' : 's'}${h.high ? ` · <b class="bad">${h.high} high priority</b>` : ''}</div>
     <div class="lc-floors">Last walked — ${floors}</div>
@@ -218,7 +231,7 @@ export function coverageGrid(cov) {
       return `<td><span class="cell gap">—</span></td>`;
     }).join('');
     return `<tr>
-      <td class="unit">${lodgeIcon(u.lodge)} <a href="/lodges/${encodeURIComponent(u.lodge)}">${esc(u.lodge)}</a> · ${esc(u.floor)} <span class="use-note">${esc(u.wings.join(' '))}</span></td>
+      <td class="unit">${dormIcon(u.lodge, 17)} <a href="/lodges/${encodeURIComponent(u.lodge)}">${esc(u.lodge)}</a> · ${esc(u.floor)} <span class="use-note">${esc(u.wings.join(' '))}</span></td>
       ${cells}
       <td class="num" title="days since last walkthrough">${u.staleDays == null ? '<span class="cell never">✗ never walked</span>' : `${u.staleDays}d ago`}</td>
     </tr>`;
@@ -228,7 +241,7 @@ export function coverageGrid(cov) {
   </table>`;
 }
 
-export function overviewBody({ s, health, weekly, streakMetrics, weekIssues }) {
+export function overviewBody({ s, health, weekly, streakMetrics, weekIssues, longTerm }) {
   return `
   <h1>Lodge ambiance</h1>
   <p class="sub">${s.open} open issues · ${s.high} high priority · ${s.thisWeek} walkthrough${s.thisWeek === 1 ? '' : 's'} this week · ${s.resolved30} resolved in the last 30 days</p>
@@ -243,7 +256,10 @@ export function overviewBody({ s, health, weekly, streakMetrics, weekIssues }) {
   <div class="card">${streakTable(streakMetrics)}</div>
 
   <h2>This week's issues <a style="font-size:13px;font-weight:400" href="/issues">see all issues →</a></h2>
-  <div class="card">${longestOpenTable(weekIssues, { emptyMsg: 'No issues reported this week yet.' })}</div>`;
+  <div class="card">${longestOpenTable(weekIssues, { emptyMsg: 'No issues reported this week yet.' })}</div>
+
+  <h2>Long term issues <span class="h-sub">open 2+ weeks</span></h2>
+  <div class="card">${longestOpenTable(longTerm, { emptyMsg: 'Nothing has been open for more than two weeks. 🎉' })}</div>`;
 }
 
 export function lodgeBody({ health, issues, floorWalks, walks, cov }) {
@@ -265,7 +281,7 @@ export function lodgeBody({ health, issues, floorWalks, walks, cov }) {
 
   return `
   <p class="crumb"><a href="/">← Overview</a></p>
-  <h1>${lodgeIcon(health.lodge)} ${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
+  <h1>${dormIcon(health.lodge, 34)} ${esc(health.lodge)} ${STATUS_PILL[health.status]}</h1>
   <p class="sub">${health.label ? esc(health.label) + ' · ' : ''}coordinator${lodgeOwnersFor(health.lodge).length === 1 ? '' : 's'}: ${esc(lodgeOwnersFor(health.lodge).join(', ') || '—')}</p>
   <p class="lodge-stats">
     <span><b>${health.open}</b> open issue${health.open === 1 ? '' : 's'}</span>
@@ -306,27 +322,6 @@ export function issuesBody({ issues, filters, lodgesList }) {
   <p class="sub">Issues stay open until someone marks them resolved — on the dashboard or via the check-off link in a follow-up message.</p>`;
 }
 
-export function walkthroughsBody({ cov, recent, showingAll, totalCount }) {
-  return `
-  <h1>Walkthroughs</h1>
-  <h2>Coverage — last ${cov.weekStarts.length} weeks</h2>
-  <div class="card">${coverageGrid(cov)}</div>
-  <h2>${showingAll ? `All submissions (${totalCount})` : `Last ${cov.weekStarts.length} weeks`}
-    ${!showingAll && totalCount > recent.length ? `<a class="btn" style="margin-left:8px" href="/walkthroughs?all=1">See all ${totalCount} →</a>` : ''}
-    ${showingAll ? `<a class="btn" style="margin-left:8px" href="/walkthroughs">Back to recent</a>` : ''}</h2>
-  <div class="card">
-    <table class="data">
-      <tr><th>Walked</th><th>Submitted</th><th>Lodge</th><th>Floor</th><th>Coordinator</th><th>Issues</th><th>Photos</th><th></th></tr>
-      ${recent.map((w) => `<tr>
-        <td class="num">${fmtDate(w.walk_date)}</td>
-        <td class="num">${esc((w.submitted_at || '').slice(0, 10))}</td>
-        <td>${esc(w.lodge)}</td><td>${esc(w.floor)}</td><td>${esc(w.coordinator)}</td>
-        <td class="num">${w.issue_count}</td><td class="num">${w.photo_count}</td>
-        <td><a href="/walkthroughs/${esc(w.id)}">open →</a></td>
-      </tr>`).join('')}
-    </table>
-  </div>`;
-}
 
 export function walkthroughDetailBody({ walk, areas, photos, sightings }) {
   const areaRows = areas.map((a) => {
@@ -346,10 +341,7 @@ export function walkthroughDetailBody({ walk, areas, photos, sightings }) {
      · <a href="https://www.jotform.com/submission/${esc(walk.id)}" target="_blank" rel="noreferrer">view in JotForm ↗</a></p>
   ${walk.comments ? `<div class="card"><b>Comments</b><p class="note">${esc(walk.comments)}</p></div>` : ''}
 
-  <h2>Extracted action items (${sightings.length})</h2>
-  <div class="card">${issuesTable(sightings)}</div>
-
-  <h2>Raw checklist</h2>
+  <h2>Checklist</h2>
   <div class="card"><table class="data">
     <tr><th>Area</th><th>Checked</th><th>Notes</th></tr>${areaRows}
   </table></div>
@@ -360,15 +352,15 @@ export function walkthroughDetailBody({ walk, areas, photos, sightings }) {
       const u = encodeURIComponent(p.url);
       return `<a href="/photo?u=${u}" target="_blank"><img loading="lazy" decoding="async" width="132" height="132" src="/photo?u=${u}&s=t" alt="walkthrough photo"></a>`;
     }).join('')}
-  </div></div>` : ''}`;
+  </div></div>` : ''}
+
+  <details class="collapse">
+    <summary><span class="chev">▸</span> Extracted action items (${sightings.length})</summary>
+    <div class="card">${issuesTable(sightings)}</div>
+  </details>`;
 }
 
-function meter(fraction, text) {
-  const pct = Math.round(fraction * 100);
-  return `<span class="meter" role="img" aria-label="${pct}%"><span style="width:${pct}%"></span></span>${text ?? `${pct}%`}`;
-}
-
-/** Coordinator × week streak grid — used on the overview tracker and the Completion page. */
+/** Coordinator × week streak grid ("Last 6 weeks" on the overview). */
 export function streakTable(m) {
   const currentWeek = weekStart(today());
   const head = m.weekStarts.map((ws) =>
@@ -391,20 +383,6 @@ export function streakTable(m) {
     <tr><th>Coordinator</th>${head}<th>Total</th><th>Last walked</th></tr>
     ${rows}
   </table>`;
-}
-
-export function completionBody({ m }) {
-  return `
-  <h1>Walkthrough completion</h1>
-  <p class="sub">Who's walking, and how consistently.</p>
-
-  <div class="tiles">
-    <div class="tile"><div class="value">${m.summary.total}</div><div class="label">walkthroughs total</div></div>
-    <div class="tile"><div class="value">${m.summary.withPhotos}/${m.summary.total}</div><div class="label">with photos</div></div>
-  </div>
-
-  <h2>Walkthrough streak — last ${m.weekStarts.length} weeks</h2>
-  <div class="card">${streakTable(m)}</div>`;
 }
 
 export function issueDetailBody({ issue, sightings, similar }) {

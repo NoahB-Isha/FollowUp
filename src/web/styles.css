@@ -289,16 +289,17 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
 
 /* Coordinator bubbles ("This week") */
 .coords {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
-  gap: 14px 10px;
-  padding: 4px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px 26px;
+  padding: 10px 0 6px;
 }
-.coord { text-align: center; }
+.coord { text-align: center; width: 132px; }
 .avatar {
-  width: 58px; height: 58px; border-radius: 50%;
+  width: 84px; height: 84px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  font: 700 20px var(--font-display);
+  font: 700 28px var(--font-display);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   object-fit: cover;
@@ -306,13 +307,34 @@ details.fu[open] > summary { background: color-mix(in srgb, var(--accent) 84%, #
 }
 .coord:hover .avatar { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .coord.notdone .avatar, .coord.notdone .coord-name { filter: grayscale(1); opacity: 0.55; }
-.coord-name { font-weight: 700; margin-top: 7px; font-size: 14px; }
+.coord-name { font-weight: 700; margin-top: 8px; font-size: 15px; }
 .coord-status { font-size: 12px; margin: 2px 0 8px; min-height: 15px; line-height: 1.35; }
 .coord.done .coord-status, .coord.done .coord-status a { color: var(--good-text); font-weight: 600; }
 .coord.notdone .coord-status { color: var(--muted); }
 
 .btn-followup.sm { padding: 6px 11px; font-size: 12.5px; border-radius: 9px; gap: 6px; }
 .btn-followup.sm svg { width: 13px; height: 13px; }
+
+/* Dorm icons (inline Lucide SVGs) */
+.dorm-icon { vertical-align: -0.18em; flex: none; }
+h1 .dorm-icon { vertical-align: -0.12em; margin-right: 2px; }
+.lc-name { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Collapsed sections (walkthrough extraction) */
+details.collapse { margin: 26px 0 18px; }
+details.collapse > summary {
+  cursor: pointer; list-style: none; user-select: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 15px; border-radius: 11px;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm); font-weight: 700;
+  transition: border-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+details.collapse > summary::-webkit-details-marker { display: none; }
+details.collapse > summary:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+details.collapse > summary .chev { transition: transform 0.15s ease; font-size: 12px; }
+details.collapse[open] > summary { margin-bottom: 12px; }
+details.collapse[open] > summary .chev { transform: rotate(90deg); }
 
 /* Streak grid (overview + Completion page) */
 table.streak td, table.streak th { text-align: center; }

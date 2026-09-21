@@ -4,8 +4,6 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const NAV = [
   ['/', 'Overview'],
   ['/issues', 'Issues'],
-  ['/walkthroughs', 'Walkthroughs'],
-  ['/completion', 'Completion'],
   ['/digest', 'Digest preview'],
 ];
 
