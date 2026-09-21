@@ -71,6 +71,13 @@ header .spacer { flex: 1; }
 main { max-width: 1080px; margin: 0 auto; padding: 22px 16px 60px; }
 h1 { font-size: 24px; margin: 6px 0 14px; }
 h2 { font-size: 18px; margin: 28px 0 10px; }
+/* A small warm kicker under section headings — decoration, not status */
+main h2::after {
+  content: ""; display: block; width: 30px; height: 4px;
+  border-radius: 2px; margin-top: 5px;
+  background: var(--flair, var(--accent));
+}
+::selection { background: color-mix(in srgb, var(--flair, var(--accent)) 32%, transparent); }
 .sub { color: var(--ink-2); margin: -8px 0 16px; }
 
 /* Stat tiles */
@@ -111,7 +118,7 @@ a.lodgecard {
 a.lodgecard:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: color-mix(in srgb, var(--flair, var(--accent)) 55%, transparent);
   text-decoration: none;
 }
 .lc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
