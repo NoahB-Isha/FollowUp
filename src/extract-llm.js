@@ -69,6 +69,7 @@ async function callGemini(body) {
       method: 'POST',
       headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90_000), // a hung connection must not stall sync
     });
     let res = await send();
     if (res.status === 429 || res.status === 503) { // rate limit / overload — wait once, retry once
