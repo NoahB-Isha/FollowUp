@@ -57,7 +57,7 @@ export function llmModel() {
 
 /** Configured model first, then known-good alternates — model ids churn on the free tier. */
 function modelCandidates() {
-  return [...new Set([llmModel(), 'gemini-flash-latest', 'gemini-3-flash-preview'])];
+  return [...new Set([llmModel(), 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3-flash-preview'])];
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -65,25 +65,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function callGemini(body) {
   let lastErr = 'no model attempted';
   for (const model of modelCandidates()) {
-    const send = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(90_000), // a hung connection must not stall sync
-    });
-    let res = await send();
-    if (res.status === 429 || res.status === 503) { // rate limit / overload — wait once, retry once
-      await sleep(15000);
-      res = await send();
-    }
-    if (res.ok) {
+    // Any failure on this model — timeout, network, HTTP error, empty reply —
+    // falls through to the next candidate rather than aborting extraction.
+    try {
+      const send = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(60_000), // a hung connection must not stall sync
+      });
+      let res = await send();
+      if (res.status === 429 || res.status === 503) { // rate limit / overload — wait once, retry once
+        await sleep(15000);
+        res = await send();
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`);
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error(`Gemini returned no text (finishReason: ${data.candidates?.[0]?.finishReason ?? 'unknown'})`);
+      if (!text) throw new Error(`no text (finishReason: ${data.candidates?.[0]?.finishReason ?? 'unknown'})`);
       return text;
+    } catch (err) {
+      lastErr = `${model} → ${err.message}`;
     }
-    lastErr = `${model} → HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`;
-    // 404 (model retired) or persistent 429/503: fall through to the next candidate.
   }
   throw new Error(lastErr);
 }

@@ -39,7 +39,8 @@ export async function sync({ full = false, photos = true, llm = true } = {}) {
     pending.push({ sub, walk });
   }
 
-  const useLLM = llm && llmAvailable();
+  // LLM extraction is opt-in via config ("llmExtraction": true) AND a key.
+  const useLLM = llm && app.llmExtraction === true && llmAvailable();
   if (useLLM) result.extractor = llmModel();
   for (const p of pending) {
     p.candidates = null;
