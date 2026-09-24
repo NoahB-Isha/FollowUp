@@ -84,18 +84,23 @@ JotForm API ──sync──▶ SQLite (data/followup.db, local disk)
 - Dashboard binds to `127.0.0.1`. Photos are fetched server-side and cached in
   `data/photocache/` so the browser never sees the API key.
 - All walkthrough data stays in `data/` (gitignored).
-- **Issue extraction**: with `GEMINI_API_KEY` set (free tier —
-  https://aistudio.google.com/apikey), sync sends each new walkthrough's notes
-  to Gemini Flash and gets back structured issues. Notes are **anonymized
-  first**: coordinator/department names and any names in the local
-  `scrubNames` list become Person1/Person2, emails and phone numbers become
-  placeholders, and real names are restored locally afterwards. Who walked,
-  contact info, and photos are never sent. Without a key — or on any API
-  error — the built-in rule-based extractor (`src/extract.js`) takes over, so
-  ingest never depends on the network. Verify with `npm run llm:test`, and
-  after first enabling the key consider one `npm run sync -- --full` rebuild
-  so history is extracted at the same quality (note: a full rebuild resets
-  resolved/dismissed marks).
+- **Issue extraction** (`"llmExtraction"` in `config/app.json`):
+  - `"ollama"` (default here): a local model via [Ollama](https://ollama.com)
+    — install it, `ollama pull qwen3:4b`, done. **Nothing leaves the machine,
+    ever**; no quotas, no keys. ~2.5 GB on disk, a few seconds per
+    walkthrough on Apple Silicon. Model/endpoint via `OLLAMA_MODEL` /
+    `OLLAMA_URL`.
+  - `"gemini"`: Google's free tier (`GEMINI_API_KEY`). Notes are **anonymized
+    first** (names → Person1/2 via the local `scrubNames` list, emails/phones
+    masked, restored locally afterwards); who walked, contacts, and photos
+    are never sent. The free tier proved flaky (timeouts, quota, retired
+    model ids), hence the local-first default.
+  - `false`: the built-in rule-based extractor (`src/extract.js`) only.
+
+  Any LLM failure falls back to rules per submission, so ingest never
+  depends on a model being reachable. Verify with `npm run llm:test`; after
+  changing extractors, one `npm run sync -- --full` re-extracts history
+  uniformly (note: a full rebuild resets resolved/dismissed marks).
 
 ### Performance notes
 

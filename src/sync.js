@@ -3,7 +3,7 @@ import { q, hasWalkthrough, transaction, bumpDataVersion, getMeta, setMeta, db }
 import { getAllSubmissions } from './jotform.js';
 import { normalizeSubmission } from './normalize.js';
 import { extractIssues, isNotApplicable } from './extract.js';
-import { extractIssuesLLM, llmAvailable, llmModel } from './extract-llm.js';
+import { extractIssuesLLM, llmAvailable, llmLabel } from './extract-llm.js';
 import { tokens, jaccard, normKey, isDirectRun } from './util.js';
 import { warmup } from './photos.js';
 
@@ -40,8 +40,8 @@ export async function sync({ full = false, photos = true, llm = true } = {}) {
   }
 
   // LLM extraction is opt-in via config ("llmExtraction": true) AND a key.
-  const useLLM = llm && app.llmExtraction === true && llmAvailable();
-  if (useLLM) result.extractor = llmModel();
+  const useLLM = llm && llmAvailable();
+  if (useLLM) result.extractor = llmLabel();
   for (const p of pending) {
     p.candidates = null;
     if (useLLM) {
@@ -49,7 +49,7 @@ export async function sync({ full = false, photos = true, llm = true } = {}) {
         p.candidates = await extractIssuesLLM(p.walk); // sequential — respects free-tier rate limits
       } catch (err) {
         console.error(`LLM extraction failed for ${p.walk.lodge} ${p.walk.floor} (${err.message}) — using rules.`);
-        result.extractor = `${llmModel()} + rules fallback`;
+        result.extractor = `${llmLabel()} + rules fallback`;
       }
     }
     if (!p.candidates) p.candidates = extractIssues(p.walk);

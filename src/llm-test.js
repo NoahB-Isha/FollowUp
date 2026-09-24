@@ -1,6 +1,6 @@
 import { q } from './db.js';
 import { normalizeSubmission } from './normalize.js';
-import { extractIssuesLLM, llmAvailable, llmModel } from './extract-llm.js';
+import { extractIssuesLLM, llmAvailable, llmLabel } from './extract-llm.js';
 import { extractIssues } from './extract.js';
 import { scrub } from './anonymize.js';
 import { scrubNameList } from './config.js';
@@ -34,10 +34,10 @@ console.log('\n--- Rule-based extraction ---');
 for (const i of extractIssues(walk)) console.log(`  [${i.area}] (${i.category}${i.severity === 'high' ? ', HIGH' : ''}) ${i.description}`);
 
 if (!llmAvailable()) {
-  console.log('\nGEMINI_API_KEY not set — add it to .env to test the LLM path.');
+  console.log('\nLLM extraction disabled (set llmExtraction to "ollama" or "gemini" in config/app.json).');
   process.exit(0);
 }
-console.log(`\n--- ${llmModel()} extraction ---`);
+console.log(`\n--- ${llmLabel()} extraction ---`);
 try {
   for (const i of await extractIssuesLLM(walk)) {
     console.log(`  [${i.area}] (${i.category}${i.severity === 'high' ? ', HIGH' : ''}) ${i.description}`);

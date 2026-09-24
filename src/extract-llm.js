@@ -1,18 +1,26 @@
-import { scrubNameList } from './config.js';
+import { app, scrubNameList } from './config.js';
 import { scrub, unscrub } from './anonymize.js';
 
 /**
- * LLM issue extraction via Google Gemini Flash (free tier). Replaces the
- * rule-based splitter when GEMINI_API_KEY is set; sync falls back to the
- * rules on any failure, so the app never depends on the network to ingest.
- *
- * Privacy: every note is anonymized before it leaves the machine — known
- * names (coordinators, departments, and the gitignored scrubNames list)
- * become Person1/Person2…, emails and phone numbers become placeholders —
- * and the placeholders are swapped back in the returned issues. Only lodge/
- * floor/area labels and the scrubbed note text are sent; never who walked,
- * never contact info, never photos.
+ * LLM issue extraction with two providers, chosen by config
+ * ("llmExtraction" in config/app.json):
+ *   "ollama" — a local model via Ollama (http://localhost:11434). Nothing
+ *              leaves the machine at all. Model: OLLAMA_MODEL (qwen3:4b).
+ *   "gemini" — Google Gemini free tier. Notes are anonymized before they
+ *              leave the machine (names → Person1/2, emails/phones masked)
+ *              and restored in the results; who walked, contacts, and
+ *              photos are never sent.
+ *   false    — disabled; the rule-based splitter in extract.js is used.
+ * Sync falls back to the rules on any failure either way, so ingest never
+ * depends on an LLM being reachable.
  */
+
+export function llmProvider() {
+  const v = app.llmExtraction;
+  if (v === 'ollama') return 'ollama';
+  if (v === 'gemini' || v === true) return 'gemini';
+  return null;
+}
 
 const AREAS = [
   'Wing A', 'Wing B', 'Wing C', 'Wing D', 'Wing E', 'Wing F', 'Wing G', 'Wing H',
@@ -35,20 +43,86 @@ const RESPONSE_SCHEMA = {
   },
 };
 
-const INSTRUCTIONS = `You convert dorm walkthrough notes into a list of discrete, actionable issues.
+// Same schema in standard JSON Schema (Ollama structured outputs).
+const JSON_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      area: { type: 'string', enum: AREAS },
+      description: { type: 'string' },
+      category: { type: 'string', enum: CATEGORIES },
+      severity: { type: 'string', enum: ['normal', 'high'] },
+    },
+    required: ['area', 'description', 'category', 'severity'],
+  },
+};
+
+const INSTRUCTIONS = `You convert dorm walkthrough notes into a list of discrete, actionable PROBLEMS. Only problems — things someone must fix, clean, restock, or repair.
 
 Rules:
 - One entry per distinct problem. Split run-on lists; if a note names several cubes with the same problem, emit one entry per cube and keep the cube number in the description.
-- Skip non-issues: rooms marked N/A / locked / not in use / sadhana room / film room / office, positive observations ("all working", "clean and in order", "no leaks"), and meta-comments about the form itself.
+- Emit NOTHING for: areas that are fine, positive observations ("clean", "working", "organized", "no leaks"), rooms marked N/A / locked / not in use / sadhana room / film room / office, statements about future plans, and meta-comments about the form itself. An empty array is a correct answer when nothing needs action.
+- A "flagged" value on an area means an inspector checked that problem box — include it as a problem even without a note.
 - Keep each description concise (under 120 characters), faithful to the original wording, with light spelling cleanup. Keep Person1/Person2-style placeholders exactly as written.
 - area: use the area the note belongs to; floor-level comments go under "General".
 - category: housekeeping (cleaning, tidying, linens, trash, smells), maintenance (repairs, lights, leaks, mold, paint, fixtures, appliances), supplies (restocking, missing items/equipment), other.
-- severity: "high" only for mold, leaks, damage, safety hazards, or anything marked urgent/immediate; otherwise "normal".
+- severity: "high" only for mold, leaks, damage, safety hazards, or anything marked urgent/immediate; otherwise "normal". Fire risks are always high: anything burning (incense, candles), scorched/blackened walls or heaters, blocked doorways/exits.
+- NEVER combine several problems into one entry. Each description states exactly ONE problem. A comma-list in a note means several entries.
 
-Return ONLY the JSON array.`;
+Example — {"area": "Wing B", "note": "old linens on beds, cube 3- no bulb cube 5- no bulb, smells like mildew"} becomes:
+[{"area":"Wing B","description":"Old linens left on beds","category":"housekeeping","severity":"normal"},
+ {"area":"Wing B","description":"Cube 3: light bulb missing","category":"maintenance","severity":"normal"},
+ {"area":"Wing B","description":"Cube 5: light bulb missing","category":"maintenance","severity":"normal"},
+ {"area":"Wing B","description":"Mildew smell","category":"housekeeping","severity":"high"}]
+
+Return ONLY the JSON array of problems.`;
+
+// Checkbox states that themselves signal a problem — the only ones worth
+// sending. Positive checks ("Beds neat", "Toilet clean") stay home so the
+// model can't echo them back as issues.
+const ACTIONABLE_FLAGS = new Set([
+  'Needs attention', 'Needs cleaning/restocking', 'Needs restocking/organization', 'Needs service',
+]);
 
 export function llmAvailable() {
-  return !!process.env.GEMINI_API_KEY;
+  const p = llmProvider();
+  if (p === 'gemini') return !!process.env.GEMINI_API_KEY;
+  return p === 'ollama'; // reachability is proven per-call; failures fall back to rules
+}
+
+export function ollamaModel() {
+  return process.env.OLLAMA_MODEL || 'qwen3:4b';
+}
+
+function ollamaUrl() {
+  return (process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/+$/, '');
+}
+
+export function llmLabel() {
+  return llmProvider() === 'ollama' ? `ollama:${ollamaModel()}` : llmModel();
+}
+
+async function callOllama(prompt) {
+  const res = await fetch(`${ollamaUrl()}/api/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: ollamaModel(),
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      think: false, // qwen3 & friends: skip the reasoning preamble
+      format: JSON_SCHEMA,
+      options: { temperature: 0.1, num_ctx: 8192 },
+    }),
+    // Generous: the first call after boot also loads the model into memory.
+    signal: AbortSignal.timeout(240_000),
+  });
+  if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`);
+  const data = await res.json();
+  const text = data.message?.content;
+  if (!text) throw new Error('Ollama returned no content');
+  return text;
 }
 
 export function llmModel() {
@@ -99,23 +173,27 @@ export async function extractIssuesLLM(walk) {
     lodge: walk.lodge,
     floor: `${walk.floor} floor`,
     areas: walk.areas
-      .filter((a) => a.note || a.statuses.length)
       .map((a) => ({
         area: a.area,
-        checked: a.statuses,
+        flagged: a.statuses.filter((s) => ACTIONABLE_FLAGS.has(s)),
         note: a.note ? scrub(a.note, names, map) : undefined,
-      })),
+      }))
+      .filter((a) => a.flagged.length || a.note)
+      .map((a) => ({ ...a, flagged: a.flagged.length ? a.flagged : undefined })),
     floorComments: walk.comments ? scrub(walk.comments, names, map) : undefined,
   };
 
-  const text = await callGemini({
-    contents: [{ role: 'user', parts: [{ text: `${INSTRUCTIONS}\n\nWalkthrough notes:\n${JSON.stringify(payload, null, 1)}` }] }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.1,
-    },
-  });
+  const prompt = `${INSTRUCTIONS}\n\nWalkthrough notes:\n${JSON.stringify(payload, null, 1)}`;
+  const text = llmProvider() === 'ollama'
+    ? await callOllama(prompt)
+    : await callGemini({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
+        temperature: 0.1,
+      },
+    });
 
   let items;
   try { items = JSON.parse(text); } catch { throw new Error('Gemini returned unparseable JSON'); }
