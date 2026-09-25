@@ -113,7 +113,10 @@ async function callOllama(prompt) {
       stream: false,
       think: false, // qwen3 & friends: skip the reasoning preamble
       format: JSON_SCHEMA,
-      options: { temperature: 0.1, num_ctx: 8192 },
+      // num_predict caps runaway generation — small models can loop forever
+      // inside a schema-valid array; a truncated reply fails parsing and
+      // falls back to rules instead of hanging the sync.
+      options: { temperature: 0.1, num_ctx: 8192, num_predict: 2000 },
     }),
     // Generous: the first call after boot also loads the model into memory.
     signal: AbortSignal.timeout(240_000),
