@@ -159,14 +159,10 @@ function pickStaged() {
     if (!m) continue;
     const file = path.join(paths.updates, name);
     const version = m[1];
+    // Obsolete/bad/corrupt ones go; older-but-valid ones stay — they are the
+    // fallback if the newest turns out to be broken.
     if (cmpVer(version, APP_VERSION) <= 0 || isBad(version) || !shaOk(file)) { discard(file); continue; }
     if (!best || cmpVer(version, best.version) > 0) best = { version, file };
-  }
-  if (best) { // keep only the winner
-    for (const name of readdirSync(paths.updates)) {
-      const m = BUNDLE_RE.exec(name);
-      if (m && m[1] !== best.version) discard(path.join(paths.updates, name));
-    }
   }
   return best;
 }
@@ -179,20 +175,22 @@ function pickStaged() {
 export function loadStagedBundle() {
   if (!process.__followup_sea || process.env.FOLLOWUP_BOOTED) return false;
   process.env.FOLLOWUP_BOOTED = APP_VERSION; // staged copy must not recurse
-  const staged = pickStaged();
-  if (!staged) return false;
-  try {
-    writeFileSync(path.join(paths.updates, '.booting'), staged.version);
-    console.log(`FollowUp: running staged update v${staged.version} (built-in: v${APP_VERSION}).`);
-    createRequire(staged.file)(staged.file);
-    return true;
-  } catch (err) {
-    console.error(`[update] staged v${staged.version} failed to load — using built-in v${APP_VERSION}:`, err.message);
-    writeFileSync(path.join(paths.updates, `.bad-${staged.version}`), new Date().toISOString());
-    discard(staged.file);
-    clearBootMarker();
-    return false;
+  let staged;
+  while ((staged = pickStaged())) {
+    try {
+      writeFileSync(path.join(paths.updates, '.booting'), staged.version);
+      console.log(`FollowUp: running staged update v${staged.version} (built-in: v${APP_VERSION}).`);
+      createRequire(staged.file)(staged.file);
+      return true;
+    } catch (err) {
+      // Mark bad + discard, then try the next-best staged version.
+      console.error(`[update] staged v${staged.version} failed to load:`, err.message);
+      writeFileSync(path.join(paths.updates, `.bad-${staged.version}`), new Date().toISOString());
+      discard(staged.file);
+      clearBootMarker();
+    }
   }
+  return false;
 }
 
 /** The server calls this once it is actually listening: boot succeeded. */

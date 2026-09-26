@@ -137,6 +137,32 @@ and GitHub release assets (2 GB) all cap below them. The 35 MB server zips
 from `npm run build` remain the light option for machines that will use rules
 or an external Ollama.
 
+## Updates
+
+The 2.4 GB is almost entirely the model and llama runtime, which rarely
+change — the app logic is a ~2 MB JS bundle, and that's all an update ships.
+
+Installed apps check this repo's GitHub Releases once a day (read-only, no
+key; `updates` in `app.json` names the repo and can turn it off). When a newer
+version exists, the dashboard shows a banner; **Install & restart** downloads
+`followup-bundle-<version>.cjs` into `~/FollowUp/updates`, verifies its
+SHA-256 against the published checksum, and restarts in place. On every start
+the app runs the newest verified staged bundle; one that crashes before it
+serves is blacklisted and the app rolls back automatically. The .app itself is
+never modified, so data, token, and signature are untouched.
+
+Publishing an update:
+
+```
+# bump "version" in package.json, commit, push, then:
+npm run release
+```
+
+That builds everything and creates release `v<version>` carrying the update
+bundle (+ checksum) and the four light server zips. A release **without** a
+bundle asset (needed when Node, llama.cpp, the model, or the window shell
+change) makes the banner link to the release page for a full reinstall instead.
+
 ## Phase 2: Pi + iPhone (already accounted for)
 
 The dashboard's data lives behind `/api/*` JSON endpoints (`/api/issues`,
