@@ -120,6 +120,23 @@ Tuned to stay snappy on a laptop or a Pi, with zero added dependencies:
 - **Incremental sync**: JotForm is only asked for submissions newer than the
   last sync (1-day overlap for safety). `npm run sync -- --full` refetches all.
 
+## Desktop app (model included)
+
+`npm run build:desktop` produces fully self-contained desktop apps — the
+Qwen3-4B model and a llama.cpp server ship inside, so end users install one
+thing and extraction runs locally with zero setup:
+
+- `FollowUp-desktop-macos-apple-silicon.dmg` / `-intel.dmg` (~2.4 GB) — a
+  real FollowUp.app: drag to Applications, right-click → Open the first time
+  (unsigned), upload the setup token. No terminal, no Ollama, no downloads.
+- `FollowUp-desktop-windows-x64.zip` (~2.3 GB) — portable folder; double-click
+  `FollowUp.vbs`. (NSIS installers cap at 2 GB, below the model's size.)
+
+At these sizes, share via Drive/AirDrop/USB — email (25 MB), WhatsApp (2 GB),
+and GitHub release assets (2 GB) all cap below them. The 35 MB server zips
+from `npm run build` remain the light option for machines that will use rules
+or an external Ollama.
+
 ## Phase 2: Pi + iPhone (already accounted for)
 
 The dashboard's data lives behind `/api/*` JSON endpoints (`/api/issues`,
