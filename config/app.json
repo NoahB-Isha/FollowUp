@@ -4,7 +4,7 @@
   "staleAfterDays": 10,
   "coverageWeeks": 6,
   "syncIntervalHours": 6,
-  "llmExtraction": "ollama",
+  "llmExtraction": "auto",
   "feedback": { "email": "claude.itn@ishausa.org" },
   "questionMap": {
     "coordinator": "2",

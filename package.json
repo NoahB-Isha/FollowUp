@@ -16,7 +16,8 @@
     "warm": "node --disable-warning=ExperimentalWarning src/warm.js",
     "llm:test": "node --disable-warning=ExperimentalWarning src/llm-test.js",
     "token": "node scripts/make-token.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "build:desktop": "node scripts/build-desktop.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

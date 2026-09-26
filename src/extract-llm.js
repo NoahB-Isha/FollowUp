@@ -1,5 +1,6 @@
 import { app, scrubNameList } from './config.js';
 import { scrub, unscrub } from './anonymize.js';
+import { localAvailable, localModelName, ensureLocalServer } from './local-llm.js';
 
 /**
  * LLM issue extraction with two providers, chosen by config
@@ -17,6 +18,8 @@ import { scrub, unscrub } from './anonymize.js';
 
 export function llmProvider() {
   const v = app.llmExtraction;
+  if (v === 'auto') return localAvailable() ? 'local' : 'ollama';
+  if (v === 'local') return 'local';
   if (v === 'ollama') return 'ollama';
   if (v === 'gemini' || v === true) return 'gemini';
   return null;
@@ -88,6 +91,7 @@ const ACTIONABLE_FLAGS = new Set([
 export function llmAvailable() {
   const p = llmProvider();
   if (p === 'gemini') return !!process.env.GEMINI_API_KEY;
+  if (p === 'local') return localAvailable();
   return p === 'ollama'; // reachability is proven per-call; failures fall back to rules
 }
 
@@ -100,7 +104,34 @@ function ollamaUrl() {
 }
 
 export function llmLabel() {
-  return llmProvider() === 'ollama' ? `ollama:${ollamaModel()}` : llmModel();
+  const p = llmProvider();
+  if (p === 'local') return `local:${localModelName()}`;
+  if (p === 'ollama') return `ollama:${ollamaModel()}`;
+  return llmModel();
+}
+
+/** Bundled llama-server: OpenAI-compatible endpoint with schema-constrained decoding. */
+async function callLocal(prompt) {
+  const base = await ensureLocalServer();
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }],
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'issues', strict: true, schema: JSON_SCHEMA },
+      },
+      temperature: 0.1,
+      max_tokens: 2000, // cap runaway generation; truncation → parse fail → rules
+    }),
+    signal: AbortSignal.timeout(240_000),
+  });
+  if (!res.ok) throw new Error(`local llm HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`);
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error(`local llm returned no content (finish: ${data.choices?.[0]?.finish_reason ?? 'unknown'})`);
+  return text;
 }
 
 async function callOllama(prompt) {
@@ -187,7 +218,10 @@ export async function extractIssuesLLM(walk) {
   };
 
   const prompt = `${INSTRUCTIONS}\n\nWalkthrough notes:\n${JSON.stringify(payload, null, 1)}`;
-  const text = llmProvider() === 'ollama'
+  const provider = llmProvider();
+  const text = provider === 'local'
+    ? await callLocal(prompt)
+    : provider === 'ollama'
     ? await callOllama(prompt)
     : await callGemini({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -202,12 +236,19 @@ export async function extractIssuesLLM(walk) {
   try { items = JSON.parse(text); } catch { throw new Error('Gemini returned unparseable JSON'); }
   if (!Array.isArray(items)) throw new Error('Gemini result is not an array');
 
+  // Deterministic safety net: some things are high-severity no matter what
+  // the model judged (small local models get lazy about severity).
+  const ALWAYS_HIGH = /\b(incense|candle|burning|scorch\w*|blacken\w*|mold|mould|leak\w*|smoke alarm|blocked (exit|door))\b/i;
+
   return items
     .filter((i) => i && typeof i.description === 'string' && i.description.trim().length >= 4)
-    .map((i) => ({
-      area: AREAS.includes(i.area) ? i.area : 'General',
-      description: unscrub(i.description.trim().slice(0, 200), map),
-      category: CATEGORIES.includes(i.category) ? i.category : 'other',
-      severity: i.severity === 'high' ? 'high' : 'normal',
-    }));
+    .map((i) => {
+      const description = unscrub(i.description.trim().slice(0, 200), map);
+      return {
+        area: AREAS.includes(i.area) ? i.area : 'General',
+        description,
+        category: CATEGORIES.includes(i.category) ? i.category : 'other',
+        severity: i.severity === 'high' || ALWAYS_HIGH.test(description) ? 'high' : 'normal',
+      };
+    });
 }
