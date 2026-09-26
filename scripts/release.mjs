@@ -22,7 +22,7 @@ const DIST = path.join(ROOT, 'dist');
 const VERSION = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 const TAG = `v${VERSION}`;
 
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', ...opts }).trim();
+const run = (cmd, args, opts = {}) => (execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', ...opts }) ?? '').trim();
 
 // ---------- guards ----------
 if (run('git', ['status', '--porcelain'])) {
