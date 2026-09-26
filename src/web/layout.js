@@ -45,6 +45,23 @@ export function page({ title, active, body, flash, theme = { scheme: 'lilac', mo
 ${flash ? `<div class="flash">${esc(flash)}</div>` : ''}
 ${body}
 </main>
+<script>
+// WhatsApp buttons: open the native app (whatsapp://) and only fall back to
+// the wa.me web page if nothing handled the scheme within a moment.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-app]');
+  if (!a) return;
+  e.preventDefault();
+  let handled = false;
+  const onBlur = () => { handled = true; };
+  window.addEventListener('blur', onBlur, { once: true });
+  location.href = a.dataset.app;
+  setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    if (!handled && !document.hidden) window.open(a.href, '_blank', 'noreferrer');
+  }, 1600);
+});
+</script>
 <footer>FollowUp runs entirely on this machine · data source: JotForm “Lodge Walkthrough Checklist”${appConfig.feedback?.email
   ? ` · <a href="mailto:${esc(appConfig.feedback.email)}?subject=${encodeURIComponent('FollowUp feedback')}">💬 Send feedback</a>` : ''}</footer>
 </body>

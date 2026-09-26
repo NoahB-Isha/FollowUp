@@ -56,11 +56,20 @@ function whereLabel(i) {
   return `<b>${esc(i.lodge)}</b> · ${esc(floorLabel(i.floor))} · ${esc(i.area)}`;
 }
 
-/** WhatsApp deep link. With no number on file it still opens WhatsApp with the message ready — the sender picks the chat. */
+/** WhatsApp web link — the universal fallback. */
 function waHref(name, text) {
   const digits = (phoneFor(name) || '').replace(/\D/g, '');
   const t = encodeURIComponent(text);
   return digits ? `https://wa.me/${digits}?text=${t}` : `https://wa.me/?text=${t}`;
+}
+
+/** WhatsApp app deep link (whatsapp:// scheme) — opens the native app directly,
+ *  skipping the wa.me web page. Links carry both; a click handler in the layout
+ *  tries the app first and falls back to the web link if nothing answers. */
+function waAppHref(name, text) {
+  const digits = (phoneFor(name) || '').replace(/\D/g, '');
+  const t = encodeURIComponent(text);
+  return digits ? `whatsapp://send?phone=${digits}&text=${t}` : `whatsapp://send?text=${t}`;
 }
 
 function issueMessage(i) {
@@ -93,10 +102,10 @@ function followUpButton(contacts, msg, { size = '' } = {}) {
   // the link still opens WhatsApp with the message ready, but can't pick the chat itself.
   if (contacts.length <= 1) {
     const name = contacts[0] || '';
-    return `<a class="btn-followup ${size}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">${SEND_ICON} Follow up${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`;
+    return `<a class="btn-followup ${size}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" data-app="${esc(waAppHref(name, msg))}" title="${waTitle(name)}">${SEND_ICON} Follow up${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`;
   }
   const links = contacts.map((name) =>
-    `<a class="${phoneFor(name) ? '' : 'nonum'}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" title="${waTitle(name)}">💬 ${esc(name)}${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`).join('');
+    `<a class="${phoneFor(name) ? '' : 'nonum'}" target="_blank" rel="noreferrer" href="${waHref(name, msg)}" data-app="${esc(waAppHref(name, msg))}" title="${waTitle(name)}">💬 ${esc(name)}${phoneFor(name) ? '' : '<sup class="nonum">✳</sup>'}</a>`).join('');
   return `<details class="fu">
     <summary title="Follow up via WhatsApp — ${contacts.map(esc).join(', ')}">${SEND_ICON} Follow up <span class="caret">▾</span></summary>
     <div class="fu-menu">${links}</div>
