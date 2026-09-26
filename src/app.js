@@ -20,11 +20,24 @@ async function main() {
     process.__followup_sea = isSea();
   } catch { process.__followup_sea = false; }
 
+  // A staged self-update (in ~/FollowUp/updates) takes over the whole process;
+  // the built-in version only runs when none is present or it fails to load.
+  if (process.__followup_sea && !process.env.FOLLOWUP_BOOTED) {
+    try {
+      const { loadStagedBundle } = await import('./updater.js');
+      if (loadStagedBundle()) return;
+    } catch (err) {
+      console.error('[update] loader error — using the built-in version:', err.message);
+    }
+  }
+
   const { isConfigured, app: appConfig, HOME } = await import('./config.js');
   await import('./server.js');
   const { startScheduler } = await import('./scheduler.js');
+  const { scheduleUpdateChecks } = await import('./updater.js');
 
   startScheduler();
+  scheduleUpdateChecks();
 
   const port = Number(process.env.FOLLOWUP_PORT || appConfig.dashboardPort || 4820);
   const url = `http://localhost:${port}`;

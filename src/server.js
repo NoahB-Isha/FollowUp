@@ -17,6 +17,8 @@ import {
 import { verifyToken } from './links.js';
 import { buildThemeCss, THEMES, MODES } from './themes.js';
 import { buildDigest } from './digest.js';
+import { APP_VERSION, cmpVer } from './version.js';
+import { getUpdateState, stageUpdate, restartSelf, clearBootMarker } from './updater.js';
 import { page } from './web/layout.js';
 import * as pages from './web/pages.js';
 import { today, weekStart, addDays } from './util.js';
@@ -82,8 +84,9 @@ const rcache = new Map(); // originalUrl → { key, body, type }
 const RCACHE_MAX = 300;
 function cachedGet(handler) {
   return (req, res) => {
-    // date in key: "n days open" labels roll over at midnight; theme in key: pages embed it
-    const key = `${today()}|${dataVersion()}|${req.theme.scheme}.${req.theme.mode}`;
+    // date in key: "n days open" labels roll over at midnight; theme in key: pages
+    // embed it; update version in key: the banner renders into cached HTML
+    const key = `${today()}|${dataVersion()}|${req.theme.scheme}.${req.theme.mode}|u:${getUpdateState().latest || ''}`;
     const hit = rcache.get(req.originalUrl);
     if (hit && hit.key === key) {
       res.type(hit.type);
@@ -123,6 +126,43 @@ server.get('/fonts/:file', (req, res) => {
 
 // Coordinator profile photos (optional) — drop <Name>.jpg into the avatars folder.
 server.use('/avatars', express.static(paths.avatars, { maxAge: 24 * 3600 * 1000 }));
+
+// ---------- Version & self-update ----------
+// Registered ahead of the setup redirect so they work on a fresh install too.
+// The custom header on the POSTs forces a CORS preflight for any cross-origin
+// caller, so a random web page can't fire them at localhost from a browser.
+
+server.get('/api/version', (req, res) => {
+  const u = getUpdateState();
+  res.json({
+    version: APP_VERSION,
+    packaged: !!process.__followup_sea,
+    latest: u.latest,
+    updateAvailable: !!(u.latest && cmpVer(u.latest, APP_VERSION) > 0),
+    selfUpdate: u.selfUpdate,
+    releaseUrl: u.url,
+  });
+});
+
+server.post('/update/apply', async (req, res) => {
+  if (req.get('x-followup') !== 'update') return res.status(403).json({ ok: false, error: 'forbidden' });
+  if (!process.__followup_sea) return res.status(400).json({ ok: false, error: 'dev checkout — use git pull' });
+  try {
+    const version = await stageUpdate();
+    res.json({ ok: true, version });
+    setTimeout(() => restartSelf(httpServer), 600); // let the response flush first
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// The macOS shell quits the server this way — after a self-update restart, the
+// process on the port is no longer the child the shell originally spawned.
+server.post('/api/quit', (req, res) => {
+  if (req.get('x-followup') !== 'quit' || !process.__followup_sea) return res.status(403).end();
+  res.json({ ok: true });
+  setTimeout(() => process.exit(0), 150);
+});
 
 // ---------- First-run setup: upload the encrypted token ----------
 server.use((req, res, next) => {
@@ -317,6 +357,18 @@ server.get('/api/walkthroughs/:id', cachedGet((req, res) => {
 }));
 
 const port = Number(process.env.FOLLOWUP_PORT || appConfig.dashboardPort || 4820);
-server.listen(port, '127.0.0.1', () => {
-  console.log(`FollowUp dashboard → http://localhost:${port} (local machine only)`);
-});
+let httpServer;
+
+// Retry EADDRINUSE for a bit: a self-update restart hands the port over from
+// the exiting process, which can take a moment to release it.
+(function listen(attempt = 0) {
+  httpServer = server.listen(port, '127.0.0.1', () => {
+    clearBootMarker(); // we're serving — a staged update that got this far is good
+    console.log(`FollowUp v${APP_VERSION} dashboard → http://localhost:${port} (local machine only)`);
+  });
+  httpServer.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && attempt < 30) return setTimeout(() => listen(attempt + 1), 500);
+    console.error(`FollowUp: can't listen on port ${port}:`, err.message);
+    process.exit(1);
+  });
+})();

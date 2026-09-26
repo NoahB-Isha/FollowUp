@@ -382,6 +382,23 @@ td.desc a:hover { color: var(--accent); }
   padding: 9px 13px; border-radius: 11px; margin-bottom: 14px;
   box-shadow: var(--shadow-sm);
 }
+
+/* "New version available" — wears the flair (attention) color */
+.update-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  background: color-mix(in srgb, var(--flair, var(--accent)) 15%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--flair, var(--accent)) 45%, transparent);
+  padding: 10px 14px; border-radius: 11px; margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.update-banner strong { color: var(--ink); }
+.update-banner .update-dl { font-weight: 650; }
+.update-banner .update-notes { color: var(--ink2); }
+.update-banner .update-skip {
+  margin-left: auto; background: none; border: none; box-shadow: none;
+  color: var(--muted); cursor: pointer; padding: 2px 6px; font-size: 13px;
+}
+.update-banner .update-skip:hover { color: var(--ink); }
 .empty { color: var(--muted); padding: 18px 0; text-align: center; }
 footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px; }
 

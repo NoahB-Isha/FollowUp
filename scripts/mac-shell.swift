@@ -57,6 +57,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // After a self-update the server restarts itself, so the process on the
+        // port may not be the child we spawned — ask it to quit over HTTP first.
+        let sem = DispatchSemaphore(value: 0)
+        var req = URLRequest(url: URL(string: "http://127.0.0.1:\(PORT)/api/quit")!)
+        req.httpMethod = "POST"
+        req.setValue("quit", forHTTPHeaderField: "X-FollowUp")
+        req.timeoutInterval = 1
+        URLSession.shared.dataTask(with: req) { _, _, _ in sem.signal() }.resume()
+        _ = sem.wait(timeout: .now() + 1.2)
         server?.terminate()
     }
 

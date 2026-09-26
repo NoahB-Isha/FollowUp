@@ -1,6 +1,6 @@
 {
   "name": "followup",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Aggregates JotForm lodge-walkthrough data into actionable task lists, a coordinator dashboard, and weekly digest emails. Runs entirely on-campus.",
   "type": "module",
@@ -17,7 +17,8 @@
     "llm:test": "node --disable-warning=ExperimentalWarning src/llm-test.js",
     "token": "node scripts/make-token.mjs",
     "build": "node scripts/build.mjs",
-    "build:desktop": "node scripts/build-desktop.mjs"
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

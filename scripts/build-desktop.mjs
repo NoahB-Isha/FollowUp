@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, copyFileSync, existsSync, rmSync, chmodSync, readdirSync, createWriteStream, statSync } from 'node:fs';
+import { mkdirSync, writeFileSync, copyFileSync, existsSync, rmSync, chmodSync, readdirSync, readFileSync, createWriteStream, statSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = path.join(ROOT, '.build-cache');
 const DIST = path.join(ROOT, 'dist');
 const HOST_ONLY = process.argv.includes('--host');
+const VERSION = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
 const LLAMA_TAG = 'b11146';
 const MODEL_URL = 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf';
@@ -102,8 +103,8 @@ async function buildMac(arch) {
   <key>CFBundleName</key><string>FollowUp</string>
   <key>CFBundleDisplayName</key><string>FollowUp</string>
   <key>CFBundleIdentifier</key><string>org.ishausa.followup</string>
-  <key>CFBundleVersion</key><string>0.3.0</string>
-  <key>CFBundleShortVersionString</key><string>0.3.0</string>
+  <key>CFBundleVersion</key><string>${VERSION}</string>
+  <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>FollowUp</string>
   <key>CFBundleIconFile</key><string>app.icns</string>

@@ -42,6 +42,7 @@ export const paths = {
   digests: path.join(HOME, 'data', 'digests'),
   backups: path.join(HOME, 'data', 'backups'),
   avatars: IS_HOME_MODE ? path.join(HOME, 'avatars') : path.join(REPO_ROOT, 'src', 'web', 'avatars'),
+  updates: path.join(HOME, 'updates'), // staged self-update bundles (created lazily)
 };
 
 for (const p of [paths.configDir, paths.data, paths.photoCache, paths.digests, paths.backups, paths.avatars]) {

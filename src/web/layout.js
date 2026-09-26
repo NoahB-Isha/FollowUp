@@ -1,5 +1,7 @@
 import { THEMES, MODES } from '../themes.js';
 import { app as appConfig } from '../config.js';
+import { APP_VERSION, cmpVer } from '../version.js';
+import { getUpdateState } from '../updater.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19,6 +21,20 @@ function themePicker(theme) {
     <select name="scheme" onchange="this.form.submit()" aria-label="Color scheme">${schemes}</select>
     <select name="mode" onchange="this.form.submit()" aria-label="Light or dark">${modes}</select>
   </form>`;
+}
+
+/** "New version" banner — apricot flair, dismissible per version (localStorage). */
+function updateBanner() {
+  const u = getUpdateState();
+  if (!u.latest || cmpVer(u.latest, APP_VERSION) <= 0) return '';
+  return `<div class="update-banner" id="fu-update" data-v="${esc(u.latest)}" hidden>
+    <strong>FollowUp v${esc(u.latest)} is available</strong>
+    ${u.selfUpdate
+      ? '<button class="primary" id="fu-update-apply">Install &amp; restart</button>'
+      : `<a class="update-dl" href="${esc(u.url)}" target="_blank" rel="noreferrer">Download the update</a>`}
+    ${u.url ? `<a class="update-notes" href="${esc(u.url)}" target="_blank" rel="noreferrer">What’s new</a>` : ''}
+    <button id="fu-update-skip" class="update-skip" title="Hide until the next version">✕</button>
+  </div>`;
 }
 
 export function page({ title, active, body, flash, theme = { scheme: 'lilac', mode: 'auto' } }) {
@@ -42,6 +58,7 @@ export function page({ title, active, body, flash, theme = { scheme: 'lilac', mo
   <form method="post" action="/sync" class="inline"><button class="primary" title="Pull latest submissions from JotForm">Sync now</button></form>
 </header>
 <main>
+${updateBanner()}
 ${flash ? `<div class="flash">${esc(flash)}</div>` : ''}
 ${body}
 </main>
@@ -61,8 +78,47 @@ document.addEventListener('click', (e) => {
     if (!handled && !document.hidden) window.open(a.href, '_blank', 'noreferrer');
   }, 1600);
 });
+
+// Update banner: hidden while dismissed for this version; Install stages the
+// new bundle server-side, then polls until the restarted server answers with
+// the new version and reloads.
+(() => {
+  const ub = document.getElementById('fu-update');
+  if (!ub) return;
+  let skipped = null;
+  try { skipped = localStorage.getItem('fu_skip_update'); } catch {}
+  if (skipped !== ub.dataset.v) ub.hidden = false;
+  document.getElementById('fu-update-skip').addEventListener('click', () => {
+    try { localStorage.setItem('fu_skip_update', ub.dataset.v); } catch {}
+    ub.hidden = true;
+  });
+  const apply = document.getElementById('fu-update-apply');
+  if (apply) apply.addEventListener('click', async () => {
+    apply.disabled = true;
+    apply.textContent = 'Installing…';
+    try {
+      const r = await fetch('/update/apply', { method: 'POST', headers: { 'X-FollowUp': 'update' } });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'update failed');
+      apply.textContent = 'Restarting…';
+      const t0 = Date.now();
+      (async function poll() {
+        try {
+          const v = await (await fetch('/api/version', { cache: 'no-store' })).json();
+          if (v.version === j.version) return location.reload();
+        } catch { /* server is between processes */ }
+        if (Date.now() - t0 < 90000) setTimeout(poll, 1000);
+        else apply.textContent = 'Taking a while — quit and reopen FollowUp';
+      })();
+    } catch (err) {
+      apply.disabled = false;
+      apply.textContent = 'Install & restart';
+      ub.querySelector('strong').textContent = 'Update failed: ' + err.message;
+    }
+  });
+})();
 </script>
-<footer>FollowUp runs entirely on this machine · data source: JotForm “Lodge Walkthrough Checklist”${appConfig.feedback?.email
+<footer>FollowUp v${APP_VERSION} · runs entirely on this machine · data source: JotForm “Lodge Walkthrough Checklist”${appConfig.feedback?.email
   ? ` · <a href="mailto:${esc(appConfig.feedback.email)}?subject=${encodeURIComponent('FollowUp feedback')}">💬 Send feedback</a>` : ''}</footer>
 </body>
 </html>`;
