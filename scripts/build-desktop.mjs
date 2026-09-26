@@ -109,11 +109,16 @@ async function buildMac(arch) {
   <key>CFBundleIconFile</key><string>app.icns</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>LSUIElement</key><true/>
 </dict></plist>`);
 
-  copyFileSync(sea, path.join(contents, 'MacOS', 'FollowUp'));
-  chmodSync(path.join(contents, 'MacOS', 'FollowUp'), 0o755);
+  // Native shell (own window + dock icon) wraps the SEA server binary.
+  execFileSync('swiftc', ['-O',
+    '-target', `${arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macos12.0`,
+    path.join(ROOT, 'scripts', 'mac-shell.swift'),
+    '-o', path.join(contents, 'MacOS', 'FollowUp'),
+  ], { stdio: 'inherit' });
+  copyFileSync(sea, path.join(contents, 'Resources', 'followup-server'));
+  chmodSync(path.join(contents, 'Resources', 'followup-server'), 0o755);
   if (existsSync(ICON)) copyFileSync(ICON, path.join(contents, 'Resources', 'app.icns'));
   copyLlama(llamaSrc, path.join(contents, 'Resources', 'llama'), 'llama-server');
   copyFileSync(MODEL, path.join(contents, 'Resources', 'model.gguf'));
@@ -122,6 +127,7 @@ async function buildMac(arch) {
   for (const f of readdirSync(path.join(contents, 'Resources', 'llama'))) {
     execFileSync('codesign', ['--force', '-s', '-', path.join(contents, 'Resources', 'llama', f)]);
   }
+  execFileSync('codesign', ['--force', '-s', '-', path.join(contents, 'Resources', 'followup-server')]);
   execFileSync('codesign', ['--force', '-s', '-', path.join(contents, 'MacOS', 'FollowUp')]);
   execFileSync('codesign', ['--force', '-s', '-', app]);
 
@@ -148,11 +154,16 @@ async function buildWindows() {
   copyLlama(llamaSrc, path.join(appdir, 'resources', 'llama'), 'llama-server.exe');
   copyFileSync(MODEL, path.join(appdir, 'resources', 'model.gguf'));
 
-  // Double-clickable launcher that hides the console window.
+  // Double-clickable launcher: hidden console server + an Edge app-mode
+  // window so FollowUp gets its own window and taskbar presence.
   writeFileSync(path.join(appdir, 'FollowUp.vbs'),
 `Set sh = CreateObject("Wscript.Shell")
+Set env = sh.Environment("PROCESS")
+env("FOLLOWUP_OPEN") = "0"
 sh.CurrentDirectory = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
 sh.Run """" & sh.CurrentDirectory & "\\FollowUp-server.exe""", 0, False
+WScript.Sleep 6000
+sh.Run "cmd /c start """" msedge --app=http://localhost:4820", 0, False
 `);
   writeFileSync(path.join(appdir, 'README.txt'),
 `FollowUp for Windows (portable)
