@@ -8,7 +8,7 @@ import { wingInfo } from './config.js';
  */
 
 // Notes that mean "this area isn't a dorm / wasn't inspectable" — not issues.
-const NOT_APPLICABLE = /\b(n\/?a|not in use|no access|don'?t have access|locked|sadhana room|film room|wellness office|resident area|out of order right now|bathroom demo)\b/i;
+const NOT_APPLICABLE = /\b(n\/?a|not in use|no access|don'?t have access|locked|sadhana room|film room|wellness office|resident area|out of order right now|bathroom demo|under renovation|being renovated|renovation in progress)\b/i;
 
 // First match wins.
 const CATEGORY_RULES = [
@@ -19,12 +19,22 @@ const CATEGORY_RULES = [
 
 const HIGH_SEVERITY = /\b(immediate(ly)?|urgent|asap|really bad|mold|leak(ing)?|damage|out of order|broken|filthy|melted|smoke alarm|should not be used)\b/i;
 
+// Statements that report the ABSENCE of a problem are never issues, even
+// though they contain negation words ("no water leaks noted", "not missing
+// any half walls"). Checked first, immune to the negation veto below.
+const ALL_CLEAR = /\b(no (water |signs? of )?(leaks?|leaking|issues?|problems?|damage|mold|concerns?)( noted| seen| found| observed)?|not missing( any)?|nothing (missing|needed|wrong|to report)|all (good|set|fine|clear|ok(ay)?|accounted for)|in (good|great|working) (shape|condition|order))\b/i;
+
+// References to evidence, not problems ("see photos", "yes see attached").
+const PHOTO_REF = /^(yes[,.:\s]+)?(see|per|refer to)\s+(the\s+)?(photos?|pics?|pictures?|attached)\b[^a-z]*$/i;
+
 // Positive/audit observations ("all toilets working no leaking") are not issues —
 // unless a negation word signals the sentence actually reports a problem.
 const POSITIVE_NOTE = /\b(working( well| fine)?|functional|functioning( well)?|no leak\w*|no issues?|looks? good|all good|clean and in order|saw improvements?|very hot)\b/i;
 const NEGATION = /\b(not|isn'?t|aren'?t|don'?t|doesn'?t|won'?t|stopped|barely|only|missing|except|but|n)\b/i;
 
 function isPositiveObservation(text) {
+  if (ALL_CLEAR.test(text)) return true;
+  if (PHOTO_REF.test(text.trim())) return true;
   return POSITIVE_NOTE.test(text) && !NEGATION.test(text);
 }
 
@@ -66,8 +76,9 @@ export function splitNote(text) {
   // Run-on cube lists ("cube 7- needs bulb cube 1- needs bulb") → break before each cube.
   t = t.replace(/\s+(?=cubes?\s*#?\d)/gi, '\n');
   let parts = t.split(/[\n.;]+/);
-  // Long comma-joined lists → split further.
-  parts = parts.flatMap((p) => (p.length > 140 ? p.split(/,\s*/) : [p]));
+  // Comma-joined lists → split further (run-ons like "signs of mold, see
+  // photos, need new caulking, need filter for ac" must become one entry each).
+  parts = parts.flatMap((p) => (p.length > 80 ? p.split(/,\s*/) : [p]));
   return parts
     .map((p) => p.trim().replace(/^[-–,:]+\s*/, ''))
     .filter((p) => p.length >= 4 && /[a-z]/i.test(p));
@@ -80,7 +91,8 @@ export function splitNote(text) {
 export function extractIssues(walk) {
   const out = [];
   const push = (area, description, fallbackCat) => {
-    const desc = description.trim();
+    // Strip question-form filler ("Yes signs of mold" → "signs of mold").
+    const desc = description.trim().replace(/^(yes|yeah|yep)[,.:\s]+(?=\S)/i, '');
     if (!desc || isPositiveObservation(desc)) return;
     out.push({
       area,

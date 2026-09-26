@@ -65,7 +65,7 @@ const INSTRUCTIONS = `You convert dorm walkthrough notes into a list of discrete
 
 Rules:
 - One entry per distinct problem. Split run-on lists; if a note names several cubes with the same problem, emit one entry per cube and keep the cube number in the description.
-- Emit NOTHING for: areas that are fine, positive observations ("clean", "working", "organized", "no leaks"), rooms marked N/A / locked / not in use / sadhana room / film room / office, statements about future plans, and meta-comments about the form itself. An empty array is a correct answer when nothing needs action.
+- Emit NOTHING for: areas that are fine, positive observations ("clean", "working", "organized", "no leaks"), statements that a problem is ABSENT ("no water leaks noted", "not missing any half walls", "no signs of damage"), references to evidence ("see photos", "pics attached"), rooms marked N/A / locked / not in use / under renovation / sadhana room / film room / office, statements about future plans, and meta-comments about the form itself. An empty array is a correct answer when nothing needs action.
 - A "flagged" value on an area means an inspector checked that problem box — include it as a problem even without a note.
 - Keep each description concise (under 120 characters), faithful to the original wording, with light spelling cleanup. Keep Person1/Person2-style placeholders exactly as written.
 - area: use the area the note belongs to; floor-level comments go under "General".

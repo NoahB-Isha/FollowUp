@@ -88,6 +88,21 @@ function readJson(file, fallback) {
   catch { return fallback; }
 }
 
+/** User config overlays defaults — a config file written by an older build
+ *  must not mask keys that newer versions introduced. */
+function withDefaults(defaults, user) {
+  if (Array.isArray(defaults) || Array.isArray(user) || typeof user !== 'object' || user === null) {
+    return user === undefined ? defaults : user;
+  }
+  const out = { ...user };
+  for (const [k, v] of Object.entries(defaults)) {
+    out[k] = k in user
+      ? (v && typeof v === 'object' && !Array.isArray(v) ? withDefaults(v, user[k]) : user[k])
+      : v;
+  }
+  return out;
+}
+
 export function reloadConfig() {
   // .env — packaged setups write it via the token upload; values override.
   if (existsSync(paths.env)) {
@@ -96,9 +111,9 @@ export function reloadConfig() {
     } catch { /* malformed line — env vars already set still apply */ }
   }
 
-  assignInPlace(app, readJson('app.json', defaultApp));
-  assignInPlace(lodges, readJson('lodges.json', defaultLodges));
-  assignInPlace(coordinators, readJson('coordinators.json', defaultCoordinators));
+  assignInPlace(app, withDefaults(defaultApp, readJson('app.json', defaultApp)));
+  assignInPlace(lodges, withDefaults(defaultLodges, readJson('lodges.json', defaultLodges)));
+  assignInPlace(coordinators, withDefaults(defaultCoordinators, readJson('coordinators.json', defaultCoordinators)));
 
   const local = readJson('coordinators.local.json', {});
   localEmails = local.emails ?? {};
