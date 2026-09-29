@@ -523,16 +523,23 @@ export function setupBody({ error }) {
   </script>`;
 }
 
-export function digestBody({ names, selected, html }) {
+export function digestBody({ names, selected, smtpReady }) {
   return `
   <h1>Weekly digest preview</h1>
-  <p class="sub">Exactly what <code>npm run digest</code> produces per coordinator. Cron this on Madhu's laptop; use <code>--send</code> once SMTP is configured.</p>
+  <p class="sub">Exactly what each coordinator receives by email. Goes out automatically Monday mornings once SMTP is configured — or send this week's now.</p>
   <form class="filters" method="get" action="/digest">
     <select name="who" onchange="this.form.submit()">
       ${names.map((n) => `<option ${n === selected ? 'selected' : ''}>${esc(n)}</option>`).join('')}
     </select>
+    <span class="spacer"></span>
+  </form>
+  <form method="post" action="/digest/send" class="inline" style="margin:-6px 0 14px"
+    onsubmit="return confirm('Email this week’s digest to all coordinators now?')">
+    <button class="primary" ${smtpReady ? '' : 'disabled title="SMTP isn’t configured — add SMTP_* to .env first"'}>Send out all emails</button>
+    ${smtpReady ? '' : '<span class="sub" style="margin-left:8px">SMTP isn’t configured yet — emails can’t be sent.</span>'}
   </form>
   <div class="card" style="padding:0">
-    <iframe srcdoc="${esc(html)}" style="width:100%;height:1200px;border:0;border-radius:10px;background:#fcfcfb"></iframe>
+    <iframe src="/digest/frame?who=${encodeURIComponent(selected)}" title="Digest preview"
+      style="width:100%;height:1200px;border:0;border-radius:10px;background:#fcfcfb"></iframe>
   </div>`;
 }

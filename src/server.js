@@ -16,7 +16,8 @@ import {
 } from './queries.js';
 import { verifyToken } from './links.js';
 import { buildThemeCss, THEMES, MODES } from './themes.js';
-import { buildDigest } from './digest.js';
+import { buildDigest, runDigest } from './digest.js';
+import { smtpConfigured } from './mailer.js';
 import { APP_VERSION, cmpVer } from './version.js';
 import { getUpdateState, stageUpdate, restartSelf, clearBootMarker } from './updater.js';
 import { page } from './web/layout.js';
@@ -274,10 +275,31 @@ server.get('/walkthroughs/:id', cachedGet((req, res) => {
 server.get('/digest', cachedGet((req, res) => {
   const names = coordinators.coordinators.filter((c) => c.digest !== false).map((c) => c.name);
   const selected = names.includes(req.query.who) ? req.query.who : names[0];
-  const c = coordinators.coordinators.find((x) => x.name === selected);
-  const { html } = buildDigest(c);
-  res.send(page({ theme: req.theme, title: 'Digest', active: '/digest', body: pages.digestBody({ names, selected, html }) }));
+  res.send(page({ theme: req.theme, title: 'Digest', active: '/digest',
+    body: pages.digestBody({ names, selected, smtpReady: smtpConfigured() }), flash: req.query.flash }));
 }));
+
+// The digest itself, served for the preview iframe. A real URL (not srcdoc):
+// the packaged WKWebView shell hands non-http URLs to the OS, and macOS has
+// no app for "about:srcdoc".
+server.get('/digest/frame', cachedGet((req, res) => {
+  const c = coordinators.coordinators.filter((x) => x.digest !== false)
+    .find((x) => x.name === req.query.who) ?? coordinators.coordinators.find((x) => x.digest !== false);
+  if (!c) return res.status(404).send('no coordinators configured');
+  res.send(buildDigest(c).html);
+}));
+
+server.post('/digest/send', async (req, res) => {
+  try {
+    const { results } = await runDigest({ send: true });
+    const sent = results.filter((r) => r.sent);
+    const skipped = results.length - sent.length;
+    res.redirect(`/digest?flash=${encodeURIComponent(
+      `Sent ${sent.length} digest email${sent.length === 1 ? '' : 's'}${skipped ? ` (${skipped} coordinator${skipped === 1 ? '' : 's'} without an email address skipped)` : ''}.`)}`);
+  } catch (err) {
+    res.redirect(`/digest?flash=${encodeURIComponent('Sending failed: ' + err.message)}`);
+  }
+});
 
 // ---------- Actions ----------
 

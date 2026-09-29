@@ -1,6 +1,6 @@
 {
   "name": "followup",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Aggregates JotForm lodge-walkthrough data into actionable task lists, a coordinator dashboard, and weekly digest emails. Runs entirely on-campus.",
   "type": "module",

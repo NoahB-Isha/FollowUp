@@ -107,6 +107,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { return decisionHandler(.allow) }
+        // Internal pseudo-URLs (iframe srcdoc, blank frames, inline blobs) are
+        // part of the page — never hand them to the OS.
+        if url.scheme == "about" || url.scheme == "data" || url.scheme == "blob" {
+            return decisionHandler(.allow)
+        }
         let isLocal = (url.host == "127.0.0.1" || url.host == "localhost")
         if url.scheme == "http" || url.scheme == "https" {
             if isLocal { return decisionHandler(.allow) }
@@ -122,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         if let url = navigationAction.request.url {
             if url.host == "127.0.0.1" || url.host == "localhost" {
                 webView.load(navigationAction.request)
-            } else {
+            } else if url.scheme != "about", url.scheme != "data", url.scheme != "blob" {
                 NSWorkspace.shared.open(url)
             }
         }

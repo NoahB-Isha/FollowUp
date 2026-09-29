@@ -240,6 +240,7 @@ button:active, .btn:active { transform: translateY(0); box-shadow: none; }
 /* The lone solid button on screen — wears the flair color (apricot in Lilac) */
 button.primary { background: var(--flair, var(--accent)); border-color: var(--flair, var(--accent)); color: var(--flair-ink, #fff); }
 button.primary:hover { color: var(--flair-ink, #fff); }
+button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
 form.inline { display: inline-flex; gap: 6px; align-items: center; margin: 0; vertical-align: middle; }
 .theme-form select { padding: 4px 6px; font-size: 12.5px; color: var(--ink-2); }
 

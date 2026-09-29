@@ -4,7 +4,6 @@ import { app, coordinators, paths, assignmentMatches, lodges } from './config.js
 import { coverage, openIssues, issueAge } from './queries.js';
 import { today, weekStart, fmtDate, fmtWeek, isDirectRun } from './util.js';
 import { smtpConfigured, sendMail } from './mailer.js';
-import { magicUrl } from './links.js';
 
 /**
  * Weekly per-coordinator digest.
@@ -17,33 +16,36 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 
 const CAT_LABEL = { housekeeping: 'Housekeeping', maintenance: 'Maintenance', supplies: 'Supplies', other: 'Other' };
 const CAT_ICON = { housekeeping: '🧹', maintenance: '🔧', supplies: '📦', other: '📌' };
+const CAT_ORDER = ['housekeeping', 'maintenance', 'supplies', 'other'];
+const catOf = (i) => (CAT_LABEL[i.category] ? i.category : 'other');
 
-function issueRow(i) {
+function issueRow(i, newSince) {
   const age = issueAge(i);
   const ageTxt = age === 0 ? 'today' : `${age}d old`;
   const sev = i.severity === 'high' ? ' ⚠️' : '';
+  const isNew = i.first_seen >= newSince
+    ? ' <span style="background:#ffa74c;color:#3a2408;font-size:11px;font-weight:700;border-radius:8px;padding:1px 6px;">NEW</span>' : '';
   const rep = i.occurrences > 1 ? ` · seen ${i.occurrences}×` : '';
   return `<tr>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;">${esc(i.area)}</td>
-    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;">${esc(i.description)}${sev}</td>
-    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:#52514e;">${CAT_ICON[i.category] || CAT_ICON.other} ${CAT_LABEL[i.category] || i.category}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;">${esc(i.description)}${sev}${isNew}</td>
     <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;color:${age >= 14 ? '#d03b3b' : '#52514e'};">${ageTxt}${rep}</td>
-    <td style="padding:6px 10px;border-bottom:1px solid #e1e0d9;white-space:nowrap;"><a href="${magicUrl(i.id)}" style="color:#2a78d6;font-weight:600;text-decoration:none;">✓ done?</a></td>
   </tr>`;
 }
 
-function issueGroup(label, list, color) {
+function issueGroup(cat, list, newSince) {
   if (!list.length) return '';
-  return `<p style="margin:10px 0 4px;font-size:13px;font-weight:600;color:${color};">${esc(label)} (${list.length})</p>
-    <table style="border-collapse:collapse;width:100%;font-size:14px;">${list.map(issueRow).join('')}</table>`;
+  const sorted = [...list].sort((a, b) =>
+    (b.severity === 'high') - (a.severity === 'high') || a.first_seen.localeCompare(b.first_seen));
+  return `<p style="margin:12px 0 4px;font-size:13px;font-weight:700;color:#0b0b0b;">${CAT_ICON[cat]} ${CAT_LABEL[cat]} (${list.length})</p>
+    <table style="border-collapse:collapse;width:100%;font-size:14px;">${sorted.map((i) => issueRow(i, newSince)).join('')}</table>`;
 }
 
 function lodgeSection(lodge, issues, newSince) {
-  const fresh = issues.filter((i) => i.first_seen >= newSince);
-  const ongoing = issues.filter((i) => i.first_seen < newSince);
+  const byCat = {};
+  for (const i of issues) (byCat[catOf(i)] ??= []).push(i);
   return `<h3 style="margin:22px 0 2px;font-size:16px;">${lodges.icons?.[lodge] ?? ''} ${esc(lodge)} — ${issues.length} open</h3>
-    ${issueGroup('New this week', fresh, '#0b0b0b')}
-    ${issueGroup('Ongoing', ongoing, '#52514e')}`;
+    ${CAT_ORDER.map((cat) => issueGroup(cat, byCat[cat] ?? [], newSince)).join('')}`;
 }
 
 export function buildDigest(coordinator) {
@@ -97,22 +99,22 @@ export function buildDigest(coordinator) {
     <h2 style="font-size:17px;margin:22px 0 0;">Open issues by lodge</h2>
     ${Object.entries(byLodge).map(([lodge, list]) => lodgeSection(lodge, list, wkStart)).join('') || '<p>Nothing open. 🎉</p>'}
 
-    <p style="color:#898781;font-size:12px;margin-top:26px;">Sent by FollowUp (runs on-campus). Reply to the overall coordinator with corrections.
-    Tap “✓ done?” next to an item once it's handled — it drops off next week's list.</p>
+    <p style="color:#898781;font-size:12px;margin-top:26px;">Sent by FollowUp (runs on-campus). Reply to the overall coordinator with corrections.</p>
   </div></body></html>`;
 
-  const textIssue = (i) => `    - [${i.area}] ${i.description} (${i.category}, open ${issueAge(i)}d)`;
+  const textIssue = (i) => `    - [${i.area}] ${i.description}${i.severity === 'high' ? ' (!)' : ''}${i.first_seen >= wkStart ? ' (new)' : ''} — open ${issueAge(i)}d`;
   const textLines = [
     `FollowUp — week of ${fmtWeek(wkStart)}`,
     `${issues.length} open issues: ${fresh.length} new this week, ${ongoing.length} ongoing, ${high.length} high priority`,
     '',
     ...Object.entries(byLodge).flatMap(([lodge, list]) => {
-      const f = list.filter((i) => i.first_seen >= wkStart);
-      const o = list.filter((i) => i.first_seen < wkStart);
+      const byCat = {};
+      for (const i of list) (byCat[catOf(i)] ??= []).push(i);
       return [
         `${lodge}:`,
-        ...(f.length ? [`  New this week (${f.length}):`, ...f.map(textIssue)] : []),
-        ...(o.length ? [`  Ongoing (${o.length}):`, ...o.map(textIssue)] : []),
+        ...CAT_ORDER.flatMap((cat) => (byCat[cat]?.length
+          ? [`  ${CAT_LABEL[cat]} (${byCat[cat].length}):`, ...byCat[cat].map(textIssue)]
+          : [])),
         '',
       ];
     }),
