@@ -356,7 +356,8 @@ server.get('/api/walkthroughs/:id', cachedGet((req, res) => {
   res.json(d);
 }));
 
-const port = Number(process.env.FOLLOWUP_PORT || appConfig.dashboardPort || 4820);
+// FOLLOWUP_PORT wins; PORT is the convention dev tooling uses to assign one.
+const port = Number(process.env.FOLLOWUP_PORT || process.env.PORT || appConfig.dashboardPort || 4820);
 let httpServer;
 
 // Retry EADDRINUSE for a bit: a self-update restart hands the port over from

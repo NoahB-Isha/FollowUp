@@ -39,7 +39,7 @@ async function main() {
   startScheduler();
   scheduleUpdateChecks();
 
-  const port = Number(process.env.FOLLOWUP_PORT || appConfig.dashboardPort || 4820);
+  const port = Number(process.env.FOLLOWUP_PORT || process.env.PORT || appConfig.dashboardPort || 4820);
   const url = `http://localhost:${port}`;
   console.log(`FollowUp home: ${HOME}`);
   if (!isConfigured()) console.log(`Not set up yet — open ${url} and upload your setup token.`);

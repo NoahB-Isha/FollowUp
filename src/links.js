@@ -32,7 +32,7 @@ export function verifyToken(token) {
 
 export function baseUrl() {
   const base = process.env.FOLLOWUP_BASE_URL
-    || `http://localhost:${process.env.FOLLOWUP_PORT || app.dashboardPort || 4820}`;
+    || `http://localhost:${process.env.FOLLOWUP_PORT || process.env.PORT || app.dashboardPort || 4820}`;
   return base.replace(/\/+$/, '');
 }
 
