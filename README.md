@@ -4,7 +4,7 @@ Aggregates JotForm **Lodge Walkthrough Checklist** submissions into actionable
 task lists, a coordinator dashboard, and weekly digest emails — so overall
 coordinators can see what's getting done and where to follow up.
 
-Built to run **entirely on-campus** (e.g. Madhu's laptop). No cloud hosting, no
+Built to run **entirely on-campus** No cloud hosting, no
 external services: the only network calls are HTTPS to `api.jotform.com` (and
 your SMTP relay when sending digests). The API key never leaves the machine and
 is never exposed to the browser.
